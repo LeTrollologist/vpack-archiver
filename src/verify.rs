@@ -3,11 +3,14 @@ RFC 8032 Ed25519 Cryptographic Verifier & Digital Signature Tools.
 */
 #![allow(dead_code)]
 
+use crate::archive::VpackArchive;
 use anyhow::Result;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use crate::archive::VpackArchive;
 
-pub fn verify_signature(archive: &VpackArchive, expected_pubkey: Option<&[u8; 32]>) -> Result<bool> {
+pub fn verify_signature(
+    archive: &VpackArchive,
+    expected_pubkey: Option<&[u8; 32]>,
+) -> Result<bool> {
     let (pk_bytes, sig_bytes) = match (archive.public_key, archive.signature) {
         (Some(pk), Some(sig)) => (pk, sig),
         _ => return Ok(false),
@@ -28,4 +31,3 @@ pub fn verify_signature(archive: &VpackArchive, expected_pubkey: Option<&[u8; 32
 
     Ok(verifying_key.verify(signed_data, &signature).is_ok())
 }
-

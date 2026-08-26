@@ -1,4 +1,4 @@
-﻿/*!
+/*!
 VPack Universal Archive Manager (WinRAR / 7-Zip for .vpack)
 Command Line Interface & Terminal Explorer
 */
@@ -134,7 +134,14 @@ fn main() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Add { archive, files, level, password, comment, sign }) => {
+        Some(Commands::Add {
+            archive,
+            files,
+            level,
+            password,
+            comment,
+            sign,
+        }) => {
             if files.is_empty() {
                 bail!("no input files or directories specified");
             }
@@ -142,7 +149,8 @@ fn main() -> Result<()> {
             let mut all_entries = Vec::new();
             for f in &files {
                 let metadata = fs::metadata(f)?;
-                let modified = metadata.modified()
+                let modified = metadata
+                    .modified()
                     .unwrap_or(SystemTime::UNIX_EPOCH)
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap_or_default()
@@ -157,7 +165,11 @@ fn main() -> Result<()> {
                 let mode = if metadata.is_dir() { 0o755 } else { 0o644 };
 
                 if f.is_dir() {
-                    let dir_name = f.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    let dir_name = f
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     all_entries.push(archive::ArchiveInputEntry {
                         rel_path: format!("{}/", dir_name),
                         data: Vec::new(),
@@ -175,7 +187,11 @@ fn main() -> Result<()> {
                         });
                     }
                 } else if f.is_file() {
-                    let name = f.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    let name = f
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     let data = fs::read(f)?;
                     all_entries.push(archive::ArchiveInputEntry {
                         rel_path: name,
@@ -189,10 +205,13 @@ fn main() -> Result<()> {
 
             let sk = if let Some(key_path) = sign {
                 let s = fs::read_to_string(key_path)?;
-                let bytes = (0..s.trim().len()).step_by(2)
-                    .map(|i| u8::from_str_radix(&s[i..i+2], 16))
+                let bytes = (0..s.trim().len())
+                    .step_by(2)
+                    .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
                     .collect::<Result<Vec<u8>, _>>()?;
-                let arr: [u8; 32] = bytes.try_into().map_err(|_| anyhow::anyhow!("invalid 32-byte key"))?;
+                let arr: [u8; 32] = bytes
+                    .try_into()
+                    .map_err(|_| anyhow::anyhow!("invalid 32-byte key"))?;
                 Some(SigningKey::from_bytes(&arr))
             } else {
                 None
@@ -204,26 +223,41 @@ fn main() -> Result<()> {
                 level,
                 password.as_deref(),
                 comment,
-                sk.as_ref()
+                sk.as_ref(),
             )?;
 
-            println!("✓ Successfully created VPack archive: {}", archive.display());
+            println!(
+                "✓ Successfully created VPack archive: {}",
+                archive.display()
+            );
             println!("  Compression Level: {}", level);
             if password.is_some() {
                 println!("  Encryption:        🔒 AES Stream Protected");
             }
             Ok(())
         }
-        Some(Commands::Extract { archive, dest, password }) => {
+        Some(Commands::Extract {
+            archive,
+            dest,
+            password,
+        }) => {
             let a = archive::VpackArchive::open(&archive)?;
             let out_dir = dest.unwrap_or_else(|| {
-                PathBuf::from(format!("{}_extracted", archive.file_stem().unwrap_or_default().to_string_lossy()))
+                PathBuf::from(format!(
+                    "{}_extracted",
+                    archive.file_stem().unwrap_or_default().to_string_lossy()
+                ))
             });
             let count = a.extract_all(&out_dir, password.as_deref())?;
             println!("✓ Extracted {} files into {}", count, out_dir.display());
             Ok(())
         }
-        Some(Commands::ExtractFile { archive, file_inside, out, password }) => {
+        Some(Commands::ExtractFile {
+            archive,
+            file_inside,
+            out,
+            password,
+        }) => {
             let a = archive::VpackArchive::open(&archive)?;
             let data = a.extract_file(&file_inside, password.as_deref())?;
             let out_path = out.unwrap_or_else(|| {
@@ -244,10 +278,17 @@ fn main() -> Result<()> {
         Some(Commands::Test { archive, password }) => {
             let a = archive::VpackArchive::open(&archive)?;
             let count = a.test_integrity(password.as_deref())?;
-            println!("✓ Integrity Test PASSED: {} files verified with CRC-32 & EOF index", count);
+            println!(
+                "✓ Integrity Test PASSED: {} files verified with CRC-32 & EOF index",
+                count
+            );
             Ok(())
         }
-        Some(Commands::View { archive, file_inside, password }) => {
+        Some(Commands::View {
+            archive,
+            file_inside,
+            password,
+        }) => {
             let a = archive::VpackArchive::open(&archive)?;
             let data = a.extract_file(&file_inside, password.as_deref())?;
             std::io::stdout().write_all(&data)?;
@@ -261,8 +302,16 @@ fn main() -> Result<()> {
             let priv_file = format!("{out}.priv");
             let pub_file = format!("{out}.pub");
 
-            let priv_hex = signing_key.to_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
-            let pub_hex = verifying_key.to_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+            let priv_hex = signing_key
+                .to_bytes()
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>();
+            let pub_hex = verifying_key
+                .to_bytes()
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>();
 
             fs::write(&priv_file, priv_hex)?;
             fs::write(&pub_file, pub_hex)?;

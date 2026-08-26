@@ -1,4 +1,4 @@
-﻿/*!
+/*!
 VPack Archive Format (VPK2) Core Engine
 A universal, cross-platform archive format with Central Directory at EOF,
 Deflate streaming compression, per-entry CRC-32 checksums, timestamps,
@@ -84,7 +84,7 @@ fn crypt_stream(data: &mut [u8], password: &str) {
         if i % 32 == 31 {
             let mut h = Sha256::new();
             h.update(&key);
-            h.update(&(i as u64).to_le_bytes());
+            h.update((i as u64).to_le_bytes());
             key = h.finalize().to_vec();
         }
     }
@@ -101,7 +101,10 @@ impl VpackArchive {
     /// Parse an in-memory VPack archive buffer
     pub fn parse(data: Vec<u8>) -> Result<Self> {
         if data.len() < 28 {
-            bail!("invalid file: size is smaller than VPack footer ({} bytes)", data.len());
+            bail!(
+                "invalid file: size is smaller than VPack footer ({} bytes)",
+                data.len()
+            );
         }
 
         let footer_len = 28;
@@ -114,7 +117,8 @@ impl VpackArchive {
 
         let cd_offset = u64::from_le_bytes(data[eocd_pos + 4..eocd_pos + 12].try_into()?) as usize;
         let cd_len = u64::from_le_bytes(data[eocd_pos + 12..eocd_pos + 20].try_into()?) as usize;
-        let entry_count = u32::from_le_bytes(data[eocd_pos + 20..eocd_pos + 24].try_into()?) as usize;
+        let entry_count =
+            u32::from_le_bytes(data[eocd_pos + 20..eocd_pos + 24].try_into()?) as usize;
         let sig_len = u32::from_le_bytes(data[eocd_pos + 24..eocd_pos + 28].try_into()?) as usize;
 
         if cd_offset + cd_len > data.len() {
@@ -126,15 +130,14 @@ impl VpackArchive {
         let meta_len = u32::from_le_bytes([data[8], data[9], data[10], data[11]]) as usize;
 
         let metadata: ArchiveMetadata = if meta_len > 0 && 16 + meta_len <= data.len() {
-            bincode::deserialize(&data[16..16 + meta_len])
-                .unwrap_or_else(|_| ArchiveMetadata {
-                    created_at: 0,
-                    creator: "VPack Archiver".into(),
-                    comment: None,
-                    total_uncompressed_bytes: 0,
-                    total_compressed_bytes: 0,
-                    total_files: entry_count as u32,
-                })
+            bincode::deserialize(&data[16..16 + meta_len]).unwrap_or_else(|_| ArchiveMetadata {
+                created_at: 0,
+                creator: "VPack Archiver".into(),
+                comment: None,
+                total_uncompressed_bytes: 0,
+                total_compressed_bytes: 0,
+                total_files: entry_count as u32,
+            })
         } else {
             ArchiveMetadata {
                 created_at: 0,
@@ -147,8 +150,8 @@ impl VpackArchive {
         };
 
         let cd_bytes = &data[cd_offset..cd_offset + cd_len];
-        let central_directory: Vec<CentralDirEntry> = bincode::deserialize(cd_bytes)
-            .context("failed to decode central directory table")?;
+        let central_directory: Vec<CentralDirEntry> =
+            bincode::deserialize(cd_bytes).context("failed to decode central directory table")?;
 
         let mut public_key = None;
         let mut signature = None;
@@ -177,7 +180,9 @@ impl VpackArchive {
 
     /// Extract a single file in O(1) time using Central Directory index
     pub fn extract_file(&self, rel_path: &str, password: Option<&str>) -> Result<Vec<u8>> {
-        let entry = self.central_directory.iter()
+        let entry = self
+            .central_directory
+            .iter()
             .find(|e| e.path == rel_path || e.path == rel_path.replace('\\', "/"))
             .with_context(|| format!("entry '{}' not found in archive", rel_path))?;
 
@@ -194,14 +199,16 @@ impl VpackArchive {
         let mut raw_chunk = self.raw_data[start..end].to_vec();
 
         if (self.flags & FLAG_ENCRYPTED) != 0 {
-            let pwd = password.with_context(|| format!("file '{}' is password protected", entry.path))?;
+            let pwd =
+                password.with_context(|| format!("file '{}' is password protected", entry.path))?;
             crypt_stream(&mut raw_chunk, pwd);
         }
 
         let decompressed = if entry.method == METHOD_DEFLATE {
             let mut decoder = DeflateDecoder::new(&raw_chunk[..]);
             let mut buf = Vec::with_capacity(entry.uncompressed_size as usize);
-            decoder.read_to_end(&mut buf)
+            decoder
+                .read_to_end(&mut buf)
                 .with_context(|| format!("decompression failed for '{}'", entry.path))?;
             buf
         } else {
@@ -273,9 +280,15 @@ impl VpackArchive {
         let mut file_count = 0u32;
 
         let mut flags = FLAG_NONE;
-        if compress_level > 0 { flags |= FLAG_COMPRESSED; }
-        if password.is_some() { flags |= FLAG_ENCRYPTED; }
-        if signing_key.is_some() { flags |= FLAG_SIGNED; }
+        if compress_level > 0 {
+            flags |= FLAG_COMPRESSED;
+        }
+        if password.is_some() {
+            flags |= FLAG_ENCRYPTED;
+        }
+        if signing_key.is_some() {
+            flags |= FLAG_SIGNED;
+        }
 
         let now_ts = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -327,7 +340,8 @@ impl VpackArchive {
             let chunk_offset = out.len() as u64;
 
             let (mut chunk_bytes, method) = if compress_level > 0 {
-                let mut encoder = DeflateEncoder::new(Vec::new(), Compression::new(compress_level.min(9)));
+                let mut encoder =
+                    DeflateEncoder::new(Vec::new(), Compression::new(compress_level.min(9)));
                 encoder.write_all(&input.data)?;
                 (encoder.finish()?, METHOD_DEFLATE)
             } else {
@@ -402,14 +416,21 @@ pub struct ArchiveInputEntry {
     pub is_dir: bool,
 }
 
-pub fn collect_directory_entries(base_path: &Path, current_path: &Path) -> Result<Vec<ArchiveInputEntry>> {
+pub fn collect_directory_entries(
+    base_path: &Path,
+    current_path: &Path,
+) -> Result<Vec<ArchiveInputEntry>> {
     let mut list = Vec::new();
     for entry in fs::read_dir(current_path)? {
         let entry = entry?;
         let path = entry.path();
         let metadata = entry.metadata()?;
-        let rel_path = path.strip_prefix(base_path)?.to_string_lossy().replace('\\', "/");
-        let modified = metadata.modified()
+        let rel_path = path
+            .strip_prefix(base_path)?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let modified = metadata
+            .modified()
             .unwrap_or(SystemTime::UNIX_EPOCH)
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
@@ -446,3 +467,145 @@ pub fn collect_directory_entries(base_path: &Path, current_path: &Path) -> Resul
     Ok(list)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_crc32_computation() {
+        let data = b"Hello, VPack Archiver!";
+        let crc = crc32_compute(data);
+        assert_ne!(crc, 0);
+        assert_eq!(crc, crc32_compute(data));
+    }
+
+    #[test]
+    fn test_archive_creation_and_extraction_roundtrip() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_roundtrip");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let archive_path = temp_dir.join("test.vpack");
+        let entries = vec![
+            ArchiveInputEntry {
+                rel_path: "hello.txt".to_string(),
+                data: b"Hello World!".to_vec(),
+                mode: 0o644,
+                modified: 1000000,
+                is_dir: false,
+            },
+            ArchiveInputEntry {
+                rel_path: "docs/readme.md".to_string(),
+                data: b"# Documentation\nVPack is fast.".to_vec(),
+                mode: 0o644,
+                modified: 1000000,
+                is_dir: false,
+            },
+        ];
+
+        VpackArchive::create_archive(
+            &archive_path,
+            entries,
+            6,
+            None,
+            Some("Test Archive".into()),
+            None,
+        )?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        assert_eq!(archive.central_directory.len(), 2);
+        assert_eq!(archive.metadata.comment.as_deref(), Some("Test Archive"));
+
+        let file1 = archive.extract_file("hello.txt", None)?;
+        assert_eq!(file1, b"Hello World!");
+
+        let file2 = archive.extract_file("docs/readme.md", None)?;
+        assert_eq!(file2, b"# Documentation\nVPack is fast.");
+
+        let out_dir = temp_dir.join("extracted");
+        let extracted_count = archive.extract_all(&out_dir, None)?;
+        assert_eq!(extracted_count, 2);
+
+        let test_count = archive.test_integrity(None)?;
+        assert_eq!(test_count, 2);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_password_encryption() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_encrypt");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let archive_path = temp_dir.join("secret.vpack");
+        let secret_content = b"Top secret data: 42";
+        let entries = vec![ArchiveInputEntry {
+            rel_path: "secret.txt".to_string(),
+            data: secret_content.to_vec(),
+            mode: 0o600,
+            modified: 1000000,
+            is_dir: false,
+        }];
+
+        let password = "SuperSecretPassword123!";
+        VpackArchive::create_archive(&archive_path, entries, 6, Some(password), None, None)?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        assert_ne!(archive.flags & FLAG_ENCRYPTED, 0);
+
+        // Correct password extraction
+        let decrypted = archive.extract_file("secret.txt", Some(password))?;
+        assert_eq!(decrypted, secret_content);
+
+        // Wrong password should fail CRC or fail extraction
+        let wrong = archive.extract_file("secret.txt", Some("wrong_password"));
+        assert!(wrong.is_err());
+
+        // No password should fail
+        let none = archive.extract_file("secret.txt", None);
+        assert!(none.is_err());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_digital_signatures() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_signing");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let mut csprng = rand::rngs::OsRng;
+        let signing_key = SigningKey::generate(&mut csprng);
+        let verifying_key = signing_key.verifying_key();
+
+        let archive_path = temp_dir.join("signed.vpack");
+        let entries = vec![ArchiveInputEntry {
+            rel_path: "binary.bin".to_string(),
+            data: vec![0x90; 1024],
+            mode: 0o755,
+            modified: 1000000,
+            is_dir: false,
+        }];
+
+        VpackArchive::create_archive(&archive_path, entries, 6, None, None, Some(&signing_key))?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        assert_ne!(archive.flags & FLAG_SIGNED, 0);
+        assert_eq!(archive.public_key, Some(verifying_key.to_bytes()));
+        assert!(archive.signature.is_some());
+
+        let valid = crate::verify::verify_signature(&archive, Some(&verifying_key.to_bytes()))?;
+        assert!(valid);
+
+        let other_key = SigningKey::generate(&mut csprng);
+        let invalid =
+            crate::verify::verify_signature(&archive, Some(&other_key.verifying_key().to_bytes()))?;
+        assert!(!invalid);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+}

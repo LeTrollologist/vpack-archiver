@@ -1,10 +1,10 @@
-﻿/*!
+/*!
 WinRAR & 7-Zip Style Visual Console Explorer for VPack Archives
 */
 #![allow(dead_code)]
 
-use chrono::{Local, TimeZone};
 use crate::archive::{VpackArchive, FLAG_ENCRYPTED, FLAG_SIGNED};
+use chrono::{Local, TimeZone};
 
 pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
     let term_width = 85;
@@ -12,9 +12,17 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
     let double_sep = "═".repeat(term_width);
 
     println!("╔{}╗", double_sep);
-    println!("║ {:<85} ║", format!("🗁 VPack Archiver (WinRAR Edition) - {}", archive_path_display));
+    println!(
+        "║ {:<85} ║",
+        format!(
+            "🗁 VPack Archiver (WinRAR Edition) - {}",
+            archive_path_display
+        )
+    );
     println!("╠{}╣", sep);
-    println!("║ [A]dd  [X]Extract  [E]xtract-Single  [T]est  [V]iew  [I]nfo  [B]enchmark  [Q]uit ║");
+    println!(
+        "║ [A]dd  [X]Extract  [E]xtract-Single  [T]est  [V]iew  [I]nfo  [B]enchmark  [Q]uit ║"
+    );
     println!("╠{}╣", sep);
 
     let mut total_orig = 0u64;
@@ -22,8 +30,10 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
     let mut dir_count = 0;
     let mut file_count = 0;
 
-    println!("║ {:<4} {:<32} {:>10} {:>10} {:>6} {:>8} {:<10} ║",
-        "Attr", "Name", "Original", "Packed", "Ratio", "CRC-32", "Date Time");
+    println!(
+        "║ {:<4} {:<32} {:>10} {:>10} {:>6} {:>8} {:<10} ║",
+        "Attr", "Name", "Original", "Packed", "Ratio", "CRC-32", "Date Time"
+    );
     println!("╠{}╣", sep);
 
     for entry in &archive.central_directory {
@@ -35,13 +45,26 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
             file_count += 1;
             total_orig += entry.uncompressed_size;
             total_packed += entry.compressed_size;
-            if entry.path.ends_with(".exe") || entry.path.ends_with(".dll") || entry.path.ends_with(".bin") {
+            if entry.path.ends_with(".exe")
+                || entry.path.ends_with(".dll")
+                || entry.path.ends_with(".bin")
+            {
                 "⚙ "
-            } else if entry.path.ends_with(".rs") || entry.path.ends_with(".py") || entry.path.ends_with(".c") || entry.path.ends_with(".js") {
+            } else if entry.path.ends_with(".rs")
+                || entry.path.ends_with(".py")
+                || entry.path.ends_with(".c")
+                || entry.path.ends_with(".js")
+            {
                 "🖹 "
-            } else if entry.path.ends_with(".zip") || entry.path.ends_with(".tar") || entry.path.ends_with(".vpack") {
+            } else if entry.path.ends_with(".zip")
+                || entry.path.ends_with(".tar")
+                || entry.path.ends_with(".vpack")
+            {
                 "🗀 "
-            } else if entry.path.ends_with(".png") || entry.path.ends_with(".jpg") || entry.path.ends_with(".svg") {
+            } else if entry.path.ends_with(".png")
+                || entry.path.ends_with(".jpg")
+                || entry.path.ends_with(".svg")
+            {
                 "🖼 "
             } else {
                 "📄"
@@ -71,11 +94,21 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
         };
 
         if is_dir {
-            println!("║ {:<4} {:<32} {:>10} {:>10} {:>6} {:>8} {:<10} ║",
-                icon, name_display, "<DIR>", "-", "-", "-", dt_str);
+            println!(
+                "║ {:<4} {:<32} {:>10} {:>10} {:>6} {:>8} {:<10} ║",
+                icon, name_display, "<DIR>", "-", "-", "-", dt_str
+            );
         } else {
-            println!("║ {:<4} {:<32} {:>10} {:>10} {:>5.0}% {:08X} {:<10} ║",
-                icon, name_display, entry.uncompressed_size, entry.compressed_size, ratio.max(0.0), entry.crc32, dt_str);
+            println!(
+                "║ {:<4} {:<32} {:>10} {:>10} {:>5.0}% {:08X} {:<10} ║",
+                icon,
+                name_display,
+                entry.uncompressed_size,
+                entry.compressed_size,
+                ratio.max(0.0),
+                entry.crc32,
+                dt_str
+            );
         }
     }
 
@@ -86,7 +119,8 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
         0.0
     };
 
-    println!("║ Total: {} files, {} folders | Orig: {:>6.2} MB | Packed: {:>6.2} MB | Ratio: {:>4.1}% ║",
+    println!(
+        "║ Total: {} files, {} folders | Orig: {:>6.2} MB | Packed: {:>6.2} MB | Ratio: {:>4.1}% ║",
         file_count,
         dir_count,
         total_orig as f64 / (1024.0 * 1024.0),
@@ -102,7 +136,9 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
         "Standard VPack Archive"
     };
 
-    println!("║ Format: VPK2 (Central Directory at EOF) | Security: {:<40} ║", status_sec);
+    println!(
+        "║ Format: VPK2 (Central Directory at EOF) | Security: {:<40} ║",
+        status_sec
+    );
     println!("╚{}╝", double_sep);
 }
-

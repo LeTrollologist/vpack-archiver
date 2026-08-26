@@ -1,4 +1,4 @@
-﻿/*!
+/*!
 Hardware-accelerated benchmark suite for compression, decompression, and CRC-32.
 */
 
@@ -49,10 +49,22 @@ pub fn run_benchmark(size_mb: usize) -> Result<()> {
 
     println!("─────────────────────────────────────────────────────────────────");
     println!(" Benchmark Summary:");
-    println!("   • Compression Speed:     {:.2} MB/s ({:.3}s)", comp_speed, comp_duration.as_secs_f64());
-    println!("   • Decompression Speed:   {:.2} MB/s ({:.3}s)", decomp_speed, decomp_duration.as_secs_f64());
-    println!("   • Checksum Rate:         {:.2} MB/s (CRC32: {:08X})", crc_speed, crc);
-    println!("   • Space Saved:           {:.2}% ({:.2} MB -> {:.2} MB)",
+    println!(
+        "   • Compression Speed:     {:.2} MB/s ({:.3}s)",
+        comp_speed,
+        comp_duration.as_secs_f64()
+    );
+    println!(
+        "   • Decompression Speed:   {:.2} MB/s ({:.3}s)",
+        decomp_speed,
+        decomp_duration.as_secs_f64()
+    );
+    println!(
+        "   • Checksum Rate:         {:.2} MB/s (CRC32: {:08X})",
+        crc_speed, crc
+    );
+    println!(
+        "   • Space Saved:           {:.2}% ({:.2} MB -> {:.2} MB)",
         ratio,
         data.len() as f64 / (1024.0 * 1024.0),
         compressed.len() as f64 / (1024.0 * 1024.0)

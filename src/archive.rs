@@ -1,22 +1,21 @@
-﻿/*!
+/*!
 VPK2 Central Directory Architecture Implementation.
 Features O(1) random-access file lookup, streaming Deflate compression,
 per-file CRC-32 checksums, and Ed25519 digital signatures.
 */
+#![allow(dead_code)]
 
 use anyhow::{bail, Context, Result};
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, Signer, SigningKey};
 use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
 use flate2::Compression;
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-pub const VPACK_MAGIC_V1: &[u8; 4] = b"VPK1";
 pub const VPACK_MAGIC_V2: &[u8; 4] = b"VPK2";
 pub const VPACK_EOCD_MAGIC: &[u8; 4] = b"EOCD";
 
@@ -330,3 +329,4 @@ impl VpackArchive {
         Ok(())
     }
 }
+

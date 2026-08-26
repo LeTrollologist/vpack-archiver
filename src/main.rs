@@ -7,7 +7,7 @@ mod bench;
 mod tui;
 mod verify;
 
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use ed25519_dalek::SigningKey;
 use std::fs;
@@ -226,3 +226,4 @@ fn walk_dir(base: &Path, current: &Path) -> Result<Vec<(String, Vec<u8>)>> {
     }
     Ok(files)
 }
+

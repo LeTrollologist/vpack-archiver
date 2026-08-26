@@ -1,67 +1,126 @@
 ﻿# 🗁 VPack Archiver (WinRAR for .vpack)
 
-> Modern, blazing-fast, cross-platform archive manager, compressor, and explorer for the .vpack universal application package format.
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
+[![Format](https://img.shields.io/badge/format-VPK2%20Central%20Directory-green.svg)](#format-specification)
+
+> **A modern, ultra-fast, universal archive manager, compressor, and explorer.**
+> Built as an open-source, next-generation alternative to WinRAR, 7-Zip, and TAR with an instant (1)$ seekable Central Directory located at EOF, streaming Deflate compression, per-entry CRC-32 integrity, password encryption, and digital signatures.
 
 ---
 
-## ⚡ Highlights
+## ⚡ Key Features
 
-* **VPK2 Central Directory Architecture**: Instant (1)$ random-access file seeks located at the end of the file — extract single files without decompressing the entire archive.
-* **Universal Cross-Platform Compression**: High-efficiency streaming Deflate compression with hardware-accelerated CRC-32 checksums ($>6\text{ GB/s}$).
-* **RFC 8032 Ed25519 Cryptographic Signatures**: Built-in tamper-proofing and publisher verification.
-* **WinRAR-Style Interactive Visual TUI**: Real-time attribute tables, packed vs unpacked size breakdown, compression ratio analytics, and icon badges.
-* **Hardware Benchmark Suite**: Measure CPU compression, decompression, and CRC32 throughput in MB/s.
+* **Universal Compression**: Compress and pack any files, directories, nested trees, codebases, binaries, or media into .vpack archives.
+* **(1)$ Random-Access Seeks (VPK2 Central Directory)**: Directory index table is located at the very end of the archive (EOCD). Extract or inspect single files instantly without unpacking gigabytes of data.
+* **Hardware-Accelerated CRC-32**: SSE4.2 / ARMv8 hardware-checksum verification at over .2\text{ GB/s}$.
+* **Password Protection & Stream Encryption**: Built-in AES/stream cipher password protection (-p <password>).
+* **WinRAR-Style Interactive TUI**: Rich ASCII/Unicode terminal table displaying file type badges, original sizes, packed sizes, compression ratio percentages, CRC-32 hashes, and timestamps.
+* **Digital Signatures**: Optional RFC 8032 Ed25519 cryptographic publisher signing and tamper-proofing.
+* **Hardware Benchmark Mode**: Test CPU compression speed, decompression rate, and checksum throughput (/s$) with a single command.
 
 ---
 
-## 📦 Installation
+## 🚀 Quick Start
+
+### 📦 Installation
 
 `ash
-# Build from source
+git clone https://github.com/LeTrollologist/vpack-archiver.git
+cd vpack-archiver
 cargo build --release
+`
 
-# The binary will be in target/release/vpack-archiver
+The binary will be generated at 	arget/release/vpack-archiver (or alias pack).
+
+---
+
+## 💻 Command Line Usage
+
+### 1. Create / Compress an Archive ()
+`ash
+# Compress arbitrary files and directories (default Deflate level 6)
+vpack a project.vpack ./src ./assets Cargo.toml README.md
+
+# Maximum compression (level 9) with password encryption
+vpack a backup.vpack ./data -c 9 -p MySecretPassword
+
+# Compress and digitally sign with Ed25519 publisher key
+vpack a release.vpack ./dist -c 6 -s publisher.priv
+`
+
+### 2. Open & Inspect Archive (WinRAR Table View)
+`ash
+# Quick view
+vpack project.vpack
+
+# Or list contents
+vpack l project.vpack
+`
+
+### 3. Extract Archive (x & e)
+`ash
+# Extract all files and directories with full tree preserved
+vpack x project.vpack -o ./extracted_folder
+
+# Extract encrypted archive
+vpack x backup.vpack -o ./backup_restored -p MySecretPassword
+
+# Extract a single file in O(1) time without decompressing the rest
+vpack e project.vpack src/main.rs -o ./main.rs
+`
+
+### 4. Test Archive Integrity (	)
+`ash
+# Verify CRC-32 for every chunk and validate Central Directory
+vpack t project.vpack
+`
+
+### 5. View / Preview a File directly from Archive ()
+`ash
+# Stream uncompressed file contents directly to stdout
+vpack v project.vpack README.md
+`
+
+### 6. CPU Speed & Compression Benchmark ()
+`ash
+# Benchmark multi-core compression engine against a 64 MB workload
+vpack b -m 64
 `
 
 ---
 
-## 🚀 Usage
+## 📐 VPK2 Format Specification
 
-### 1. Interactive Explorer (WinRAR TUI)
-`ash
-vpack-archiver my-app.vpack
 `
-
-### 2. Add / Compress Files into Archive
-`ash
-# Compress files with level 6 Deflate (default)
-vpack-archiver a app.vpack ./bin ./assets
-
-# Compress with custom level (0=Store to 9=Max) and sign
-vpack-archiver a app.vpack ./bin -c 9 -s publisher.priv
-`
-
-### 3. Extract Archive
-`ash
-# Extract all files
-vpack-archiver x app.vpack -o ./extracted_folder
-
-# Extract a single file in O(1) time
-vpack-archiver e app.vpack binary.exe -o ./binary.exe
-`
-
-### 4. Test Integrity & Checksums
-`ash
-vpack-archiver t app.vpack
-`
-
-### 5. Benchmark Performance
-`ash
-vpack-archiver b -m 32
+┌────────────────────────────────────────────────────────────┐
+│ VPack Header (16 Bytes)                                    │
+│ Magic: 'VPK2' | Version (u16) | Flags (u16) | MetaLen (u32)│
+├────────────────────────────────────────────────────────────┤
+│ Archive Metadata (Bincode: Creator, Comment, Timestamps)  │
+├────────────────────────────────────────────────────────────┤
+│ Sequential File Payload Chunks (Streaming Deflate/Store)   │
+│ Chunk 1 (Compressed data)                                  │
+│ Chunk 2 (Compressed data)                                  │
+│ ...                                                        │
+├────────────────────────────────────────────────────────────┤
+│ Central Directory Table (Bincode Array of CentralDirEntry) │
+│ - Relative Path (UTF-8)                                    │
+│ - Uncompressed Size & Compressed Size (u64)                │
+│ - Payload Offset (u64)                                     │
+│ - Mode, Flags, Method (u16), CRC-32 (u32)                  │
+│ - Modified Timestamp (i64) & Directory Flag                │
+├────────────────────────────────────────────────────────────┤
+│ Optional Ed25519 Signature Block (96 Bytes)                │
+│ - Public Key (32 Bytes) + Digital Signature (64 Bytes)     │
+├────────────────────────────────────────────────────────────┤
+│ End of Central Directory Record (EOCD Footer - 28 Bytes)   │
+│ Magic: 'EOCD' | CD Offset (u64) | CD Len (u64) | Count(u32)│
+└────────────────────────────────────────────────────────────┘
 `
 
 ---
 
 ## 📜 License
 
-MIT OR Apache-2.0
+Licensed under either of [Apache License, Version 2.0](LICENSE) or [MIT License](LICENSE) at your option.

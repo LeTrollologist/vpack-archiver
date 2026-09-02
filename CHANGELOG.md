@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **WinRAR / 7-Zip Style Visual Console Explorer**: Interactive terminal UI (`ui` / `l` / direct invocation) displaying file type icons, sizes, packed sizes, compression ratio percentages, CRC-32 hashes, and timestamps.
 * **Hardware-Accelerated CRC-32 Checksums**: SSE4.2 / ARMv8 hardware-checksum computation running in excess of 6.2 GB/s.
 * **Multi-core CPU Benchmark Suite**: Integrated hardware benchmark tool (`b` / `bench`) to test streaming Deflate compression, decompression throughput, and checksum speed.
-* **Automated CI / CD Workflows**: GitHub Actions test suite matrix across Windows, Linux, and macOS, with automated multi-platform release binary packaging.
+* **Automated Test Workflows**: Comprehensive test suite matrix and automated release binary packaging.
 * **Comprehensive Test Suite**: Automated unit tests for round-trip deflate extraction, password encryption/decryption, wrong password detection, CRC-32 verification, Ed25519 digital signature signing & verification, and integrity checking.
 
 ### Changed

@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 [![Format](https://img.shields.io/badge/format-VPK2%20Central%20Directory-green.svg)](#-vpk2-format-specification)
 [![Security](https://img.shields.io/badge/audit-passed-brightgreen.svg)](RELEASE_PROCESS.md)
-[![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20macos-lightgrey.svg)](https://github.com/LeTrollologist/vpack-archiver/releases)
+[![Platform](https://img.shields.io/badge/platform-windows%20x86__64-blue.svg)](https://github.com/LeTrollologist/vpack-archiver/releases)
 
 > **A modern, ultra-fast universal archive manager, compressor, and explorer.**
 > Built as an open-source, next-generation alternative to WinRAR, 7-Zip, and TAR with an instant $\mathcal{O}(1)$ seekable Central Directory located at EOF, multi-codec streaming compression (Deflate & LZ4), per-entry CRC-32 integrity, password encryption, and digital signatures.
@@ -56,10 +56,10 @@
 
 ### Pre-built Binaries
 
-Ready-to-use binaries for Windows, Linux, and macOS are available on the [GitHub Releases page](https://github.com/LeTrollologist/vpack-archiver/releases).
+Pre-built standalone binary releases for **Windows (x86_64)** are available on the [GitHub Releases page](https://github.com/LeTrollologist/vpack-archiver/releases).
 
 #### Windows (x86_64)
-Download `vpack-archiver-windows-x86_64.exe` or `vpack-archiver-v1.1.0-windows-x86_64.zip`, unpack, and add to your system `PATH`.
+Download `vpack-archiver-v1.2.0-windows-x86_64.zip` or the native `vpack-archiver-v1.2.0-windows-x86_64.vpack` bundle from the [latest release](https://github.com/LeTrollologist/vpack-archiver/releases), unpack, and add to your system `PATH`.
 
 ### Building from Source
 
@@ -73,7 +73,7 @@ cargo build --release
 
 The optimized binary is produced at:
 * Windows: `target/release/vpack-archiver.exe`
-* Linux/macOS: `target/release/vpack-archiver`
+* Unix (source build): `target/release/vpack-archiver`
 
 ---
 

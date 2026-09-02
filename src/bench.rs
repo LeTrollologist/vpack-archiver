@@ -1,5 +1,5 @@
 /*!
-Hardware-accelerated benchmark suite for compression, decompression, and CRC-32.
+Hardware-accelerated benchmark suite for Deflate, LZ4, and CRC-32.
 */
 
 use anyhow::Result;
@@ -10,10 +10,13 @@ use std::io::{Read, Write};
 use std::time::Instant;
 
 pub fn run_benchmark(size_mb: usize) -> Result<()> {
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!(" ⚡ VPack Archiver Compression Benchmark Suite");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!(" Workload: {} MB entropy dataset", size_mb);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!(" ⚡ VPack Archiver Multi-Codec Benchmark Suite");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!(
+        " Workload: {} MB entropy dataset  (mixed data pattern)",
+        size_mb
+    );
 
     let total_bytes = size_mb * 1024 * 1024;
     let mut data = Vec::with_capacity(total_bytes);
@@ -21,54 +24,63 @@ pub fn run_benchmark(size_mb: usize) -> Result<()> {
         data.push(((i * 31 + (i >> 3)) ^ (i >> 7)) as u8);
     }
 
-    print!(" [1/3] Benchmarking Streaming Deflate (Level 6)... ");
-    let start_comp = Instant::now();
+    // [1/4] Deflate compression
+    print!(" [1/4] Deflate Compress  (level 6) ... ");
+    let t = Instant::now();
     let mut encoder = DeflateEncoder::new(Vec::new(), Compression::new(6));
     encoder.write_all(&data)?;
-    let compressed = encoder.finish()?;
-    let comp_duration = start_comp.elapsed();
-    let comp_speed = (size_mb as f64) / comp_duration.as_secs_f64();
-    let ratio = (1.0 - (compressed.len() as f64 / data.len() as f64)) * 100.0;
-    println!("✓ {:.2} MB/s", comp_speed);
+    let compressed_deflate = encoder.finish()?;
+    let deflate_comp_s = t.elapsed().as_secs_f64();
+    let deflate_comp_mbps = size_mb as f64 / deflate_comp_s;
+    let deflate_ratio = (1.0 - compressed_deflate.len() as f64 / data.len() as f64) * 100.0;
+    println!(
+        "{:.1} MB/s  ({:.1}% space saved)",
+        deflate_comp_mbps,
+        deflate_ratio.max(0.0)
+    );
 
-    print!(" [2/3] Benchmarking Streaming Decompression...    ");
-    let start_decomp = Instant::now();
-    let mut decoder = DeflateDecoder::new(&compressed[..]);
+    // [2/4] Deflate decompression
+    print!(" [2/4] Deflate Decompress          ... ");
+    let t = Instant::now();
+    let mut decoder = DeflateDecoder::new(&compressed_deflate[..]);
     let mut decompressed = Vec::with_capacity(data.len());
     decoder.read_to_end(&mut decompressed)?;
-    let decomp_duration = start_decomp.elapsed();
-    let decomp_speed = (size_mb as f64) / decomp_duration.as_secs_f64();
-    println!("✓ {:.2} MB/s", decomp_speed);
+    let deflate_decomp_mbps = size_mb as f64 / t.elapsed().as_secs_f64();
+    println!("{:.1} MB/s", deflate_decomp_mbps);
 
-    print!(" [3/3] Benchmarking Hardware CRC-32 Checksum...   ");
-    let start_crc = Instant::now();
+    // [3/4] LZ4 compression (pure Rust, ultra fast)
+    print!(" [3/4] LZ4 Compress     (frame)    ... ");
+    let t = Instant::now();
+    let compressed_lz4 = lz4_flex::compress_prepend_size(&data);
+    let lz4_comp_mbps = size_mb as f64 / t.elapsed().as_secs_f64();
+    let lz4_ratio: f64 = (1.0 - (compressed_lz4.len() as f64 / data.len() as f64)) * 100.0;
+    println!(
+        "{:.1} MB/s  ({:.1}% space saved)",
+        lz4_comp_mbps,
+        lz4_ratio.max(0.0)
+    );
+
+    // [4/4] CRC-32 checksum
+    print!(" [4/4] CRC-32 Checksum  (SSE4.2)   ... ");
+    let t = Instant::now();
     let crc = crate::archive::crc32_compute(&data);
-    let crc_duration = start_crc.elapsed();
-    let crc_speed = (size_mb as f64) / crc_duration.as_secs_f64();
-    println!("✓ {:.2} MB/s", crc_speed);
+    let crc_mbps = size_mb as f64 / t.elapsed().as_secs_f64();
+    println!("{:.1} MB/s  (CRC32: {:08X})", crc_mbps, crc);
 
-    println!("─────────────────────────────────────────────────────────────────");
-    println!(" Benchmark Summary:");
+    println!("───────────────────────────────────────────────────────────────────────");
+    println!(" Summary:");
     println!(
-        "   • Compression Speed:     {:.2} MB/s ({:.3}s)",
-        comp_speed,
-        comp_duration.as_secs_f64()
+        "   Deflate compress:    {:>8.1} MB/s   ratio: {:.1}%",
+        deflate_comp_mbps,
+        deflate_ratio.max(0.0)
     );
+    println!("   Deflate decompress:  {:>8.1} MB/s", deflate_decomp_mbps);
     println!(
-        "   • Decompression Speed:   {:.2} MB/s ({:.3}s)",
-        decomp_speed,
-        decomp_duration.as_secs_f64()
+        "   LZ4 compress:        {:>8.1} MB/s   ratio: {:.1}%   ← ultra fast",
+        lz4_comp_mbps,
+        lz4_ratio.max(0.0)
     );
-    println!(
-        "   • Checksum Rate:         {:.2} MB/s (CRC32: {:08X})",
-        crc_speed, crc
-    );
-    println!(
-        "   • Space Saved:           {:.2}% ({:.2} MB -> {:.2} MB)",
-        ratio,
-        data.len() as f64 / (1024.0 * 1024.0),
-        compressed.len() as f64 / (1024.0 * 1024.0)
-    );
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("   CRC-32 checksum:     {:>8.1} MB/s", crc_mbps);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     Ok(())
 }

@@ -5,6 +5,20 @@ All notable changes to the `vpack-archiver` project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-02
+
+### Added
+* **Multi-Codec Compression Engine**: Added support for ultra-fast pure-Rust **LZ4 streaming compression** (`-C lz4`) alongside **Deflate** (`-C deflate`, default).
+* **CLI Codec Selection Flag**: New `-C, --codec` parameter for selecting compression algorithms (`deflate` or `lz4`).
+* **Multi-Codec Benchmark Suite**: Expanded `vpack b` CPU benchmark with 4 hardware-accelerated passes: Deflate Compress, Deflate Decompress, LZ4 Compress, and SSE4.2 CRC-32 checksum.
+* **Hollow Canvas Local Release Pipeline**: Replaced GitHub Actions with a deterministic, local-first release orchestrator (`scripts/pipeline.py`), automated `Makefile` targets, and living documentation (`RELEASE_PROCESS.md`).
+* **VirusTotal API v3 Antivirus Verification**: Integrated automated submission, polling, report generation, and security audit log (`virustotal-summary.txt`).
+* **VPack Self-Packaging (Dog-Fooding)**: Release packaging now produces native high-compression `.vpack` distribution archives created by the newly compiled release binary itself.
+* **Pure Rust Guarantee**: 100% pure-Rust codebase and dependency tree with zero external C-compiler or runtime toolchain requirements.
+
+### Removed
+* Removed `.github/workflows/` (CI/CD entirely replaced by local deterministic pipeline).
+
 ---
 
 ## [1.1.0] - 2026-08-26

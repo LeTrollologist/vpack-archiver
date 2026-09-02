@@ -1,4 +1,7 @@
-﻿target/
+target/
+dist/
+dist_release/
 *.priv
 *.pub
 *.vpack
+*.zip

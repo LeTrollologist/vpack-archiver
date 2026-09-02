@@ -19,7 +19,7 @@ use std::time::SystemTime;
 #[derive(Parser, Debug)]
 #[command(
     name = "vpack",
-    version = "1.1.0",
+    version = "1.2.0",
     about = "VPack Archiver - The universal WinRAR & 7-Zip equivalent for .vpack archives"
 )]
 struct Cli {
@@ -39,9 +39,12 @@ enum Commands {
         archive: PathBuf,
         /// Input files or directories to compress
         files: Vec<PathBuf>,
-        /// Compression level (0 = Store, 1..=9 = Deflate) [default: 6]
+        /// Compression level (0 = Store; 1–9 = Deflate; LZ4 ignores level) [default: 6]
         #[arg(short = 'c', long, default_value = "6")]
         level: u32,
+        /// Compression codec: deflate (default) or lz4 (ultra fast)
+        #[arg(short = 'C', long, default_value = "deflate")]
+        codec: String,
         /// Password protect / encrypt archive
         #[arg(short = 'p', long)]
         password: Option<String>,
@@ -138,12 +141,22 @@ fn main() -> Result<()> {
             archive,
             files,
             level,
+            codec,
             password,
             comment,
             sign,
         }) => {
             if files.is_empty() {
                 bail!("no input files or directories specified");
+            }
+
+            // Validate codec
+            let codec = codec.to_lowercase();
+            if codec != "deflate" && codec != "lz4" {
+                bail!(
+                    "unknown codec '{}': valid options are 'deflate' or 'lz4'",
+                    codec
+                );
             }
 
             let mut all_entries = Vec::new();
@@ -221,6 +234,7 @@ fn main() -> Result<()> {
                 &archive,
                 all_entries,
                 level,
+                &codec,
                 password.as_deref(),
                 comment,
                 sk.as_ref(),
@@ -230,7 +244,11 @@ fn main() -> Result<()> {
                 "✓ Successfully created VPack archive: {}",
                 archive.display()
             );
-            println!("  Compression Level: {}", level);
+            println!(
+                "  Compression Level: {}  Codec: {}",
+                level,
+                codec.to_uppercase()
+            );
             if password.is_some() {
                 println!("  Encryption:        🔒 AES Stream Protected");
             }
@@ -328,7 +346,7 @@ fn main() -> Result<()> {
         }
         None => {
             println!("========================================================");
-            println!(" 🗁 VPack Archiver (WinRAR for .vpack) v1.1.0");
+            println!(" 🗁 VPack Archiver (WinRAR for .vpack) v1.2.0");
             println!("========================================================");
             println!(" Commands:");
             println!("   vpack <archive.vpack>             Open & Inspect (WinRAR UI)");
@@ -340,6 +358,9 @@ fn main() -> Result<()> {
             println!("   vpack v <archive> <file>          View file to stdout");
             println!("   vpack b [-m <size_mb>]            Run CPU speed benchmark");
             println!("   vpack keygen [-o <prefix>]        Generate signing keypair");
+            println!(" Compression:");
+            println!("   -c <level>   0=Store  1-9=Deflate  (LZ4 ignores level) [default: 6]");
+            println!("   -C <codec>   deflate (default) | lz4 (ultra fast)");
             println!("========================================================");
             Ok(())
         }

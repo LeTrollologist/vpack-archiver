@@ -1,8 +1,10 @@
 /*!
 VPack Archive Format (VPK2) Core Engine
 A universal, cross-platform archive format with Central Directory at EOF,
-Deflate streaming compression, per-entry CRC-32 checksums, timestamps,
-file attributes, password encryption (AES/ChaCha20 stream), and Ed25519 signatures.
+Deflate and LZ4 streaming compression, per-entry CRC-32 checksums,
+timestamps, file attributes, password encryption, and Ed25519 signatures.
+
+Future: Zstd support requires MSVC Build Tools or MinGW-w64 (C compiler).
 */
 #![allow(dead_code)]
 
@@ -28,6 +30,8 @@ pub const FLAG_ENCRYPTED: u16 = 0x0004;
 
 pub const METHOD_STORE: u16 = 0;
 pub const METHOD_DEFLATE: u16 = 1;
+pub const METHOD_LZ4: u16 = 2;
+// METHOD_ZSTD = 3 reserved; requires C toolchain (MSVC or MinGW-w64)
 
 /// Metadata for a single entry in the VPack archive Central Directory
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -211,6 +215,9 @@ impl VpackArchive {
                 .read_to_end(&mut buf)
                 .with_context(|| format!("decompression failed for '{}'", entry.path))?;
             buf
+        } else if entry.method == METHOD_LZ4 {
+            lz4_flex::decompress_size_prepended(&raw_chunk)
+                .with_context(|| format!("lz4 decompression failed for '{}'", entry.path))?
         } else {
             raw_chunk
         };
@@ -266,11 +273,15 @@ impl VpackArchive {
         Ok(count)
     }
 
-    /// Create a new .vpack archive from a list of files/directories
+    /// Create a new .vpack archive from a list of files/directories.
+    ///
+    /// `codec` — compression codec: `"deflate"` (default) or `"lz4"`.
+    /// `compress_level` — Deflate level 0–9 (0 = store, codec ignored); LZ4 ignores level.
     pub fn create_archive(
         out_path: &Path,
         entries: Vec<ArchiveInputEntry>,
         compress_level: u32,
+        codec: &str,
         password: Option<&str>,
         comment: Option<String>,
         signing_key: Option<&SigningKey>,
@@ -297,7 +308,7 @@ impl VpackArchive {
 
         let mut metadata = ArchiveMetadata {
             created_at: now_ts,
-            creator: "VPack Archiver v1.1".into(),
+            creator: "VPack Archiver v1.2".into(),
             comment,
             total_uncompressed_bytes: 0,
             total_compressed_bytes: 0,
@@ -340,10 +351,21 @@ impl VpackArchive {
             let chunk_offset = out.len() as u64;
 
             let (mut chunk_bytes, method) = if compress_level > 0 {
-                let mut encoder =
-                    DeflateEncoder::new(Vec::new(), Compression::new(compress_level.min(9)));
-                encoder.write_all(&input.data)?;
-                (encoder.finish()?, METHOD_DEFLATE)
+                match codec {
+                    "lz4" => {
+                        let compressed = lz4_flex::compress_prepend_size(&input.data);
+                        (compressed, METHOD_LZ4)
+                    }
+                    _ => {
+                        // deflate (default)
+                        let mut encoder = DeflateEncoder::new(
+                            Vec::new(),
+                            Compression::new(compress_level.min(9)),
+                        );
+                        encoder.write_all(&input.data)?;
+                        (encoder.finish()?, METHOD_DEFLATE)
+                    }
+                }
             } else {
                 (input.data, METHOD_STORE)
             };
@@ -507,6 +529,7 @@ mod tests {
             &archive_path,
             entries,
             6,
+            "deflate",
             None,
             Some("Test Archive".into()),
             None,
@@ -534,6 +557,44 @@ mod tests {
     }
 
     #[test]
+    fn test_lz4_roundtrip() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_lz4");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let archive_path = temp_dir.join("lz4.vpack");
+        let payload = b"BBBB".repeat(4096);
+        let entries = vec![ArchiveInputEntry {
+            rel_path: "fast.bin".to_string(),
+            data: payload.to_vec(),
+            mode: 0o644,
+            modified: 1000000,
+            is_dir: false,
+        }];
+
+        // Level is ignored by LZ4 but must be > 0 to enable compression
+        VpackArchive::create_archive(&archive_path, entries, 1, "lz4", None, None, None)?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        assert_eq!(archive.central_directory.len(), 1);
+        assert_eq!(archive.central_directory[0].method, METHOD_LZ4);
+
+        let entry = &archive.central_directory[0];
+        assert!(
+            entry.compressed_size < entry.uncompressed_size / 10,
+            "LZ4 should compress 16KB of repeated bytes drastically, got {} -> {}",
+            entry.uncompressed_size,
+            entry.compressed_size
+        );
+
+        let restored = archive.extract_file("fast.bin", None)?;
+        assert_eq!(restored, payload.as_slice());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
     fn test_password_encryption() -> Result<()> {
         let temp_dir = std::env::temp_dir().join("vpack_test_encrypt");
         let _ = fs::remove_dir_all(&temp_dir);
@@ -550,7 +611,15 @@ mod tests {
         }];
 
         let password = "SuperSecretPassword123!";
-        VpackArchive::create_archive(&archive_path, entries, 6, Some(password), None, None)?;
+        VpackArchive::create_archive(
+            &archive_path,
+            entries,
+            6,
+            "deflate",
+            Some(password),
+            None,
+            None,
+        )?;
 
         let archive = VpackArchive::open(&archive_path)?;
         assert_ne!(archive.flags & FLAG_ENCRYPTED, 0);
@@ -590,7 +659,15 @@ mod tests {
             is_dir: false,
         }];
 
-        VpackArchive::create_archive(&archive_path, entries, 6, None, None, Some(&signing_key))?;
+        VpackArchive::create_archive(
+            &archive_path,
+            entries,
+            6,
+            "deflate",
+            None,
+            None,
+            Some(&signing_key),
+        )?;
 
         let archive = VpackArchive::open(&archive_path)?;
         assert_ne!(archive.flags & FLAG_SIGNED, 0);

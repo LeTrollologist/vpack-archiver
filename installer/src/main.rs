@@ -45,28 +45,37 @@ struct Args {
 }
 
 fn find_candidate_package() -> Option<PathBuf> {
-    // 1. Look in current working directory
-    if let Ok(entries) = std::fs::read_dir(".") {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext.eq_ignore_ascii_case("vpack") {
-                    return Some(path);
-                }
+    let mut check_dirs = Vec::new();
+
+    // 1. Current working directory
+    check_dirs.push(PathBuf::from("."));
+
+    // 2. Directory containing the installer executable
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(dir) = exe_path.parent() {
+            check_dirs.push(dir.to_path_buf());
+            // Also parent of installer (e.g. dist/ or release/)
+            if let Some(parent) = dir.parent() {
+                check_dirs.push(parent.to_path_buf());
             }
         }
     }
 
-    // 2. Look alongside installer executable
-    if let Ok(exe_path) = env::current_exe() {
-        if let Some(dir) = exe_path.parent() {
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if let Some(ext) = path.extension() {
-                        if ext.eq_ignore_ascii_case("vpack") {
-                            return Some(path);
-                        }
+    // 3. User Downloads directory
+    if let Ok(user_profile) = env::var("USERPROFILE") {
+        let p = PathBuf::from(&user_profile);
+        check_dirs.push(p.join("Downloads"));
+        check_dirs.push(p.join("Desktop"));
+        check_dirs.push(p);
+    }
+
+    for dir in check_dirs {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext.eq_ignore_ascii_case("vpack") {
+                        return Some(path);
                     }
                 }
             }
@@ -135,10 +144,22 @@ fn main() -> Result<()> {
         None => match find_candidate_package() {
             Some(p) => p,
             None => {
-                bail!(
-                    "no .vpack archive found in current directory. \
-                     Please pass --package <file.vpack>"
-                );
+                if args.unattended {
+                    bail!(
+                        "no .vpack archive found in current directory. \
+                         Please pass --package <file.vpack>"
+                    );
+                } else {
+                    println!("===============================================================");
+                    println!("  🗁 VPack Archiver Setup");
+                    println!("===============================================================");
+                    println!("  No .vpack package was automatically detected nearby.");
+                    let entered = prompt_path("  Please enter the path to the .vpack package file", Path::new(""));
+                    if entered.as_os_str().is_empty() || !entered.exists() {
+                        bail!("specified package '{}' not found. Download vpack-archiver-*.vpack first.", entered.display());
+                    }
+                    entered
+                }
             }
         },
     };
@@ -198,5 +219,14 @@ fn main() -> Result<()> {
         create_shortcuts,
     };
 
-    install::run_install(&vpack_package, &opts)
+    let res = install::run_install(&vpack_package, &opts);
+    if !args.unattended {
+        if let Err(ref e) = res {
+            eprintln!("\n  ❌ Installation error: {}", e);
+        }
+        println!("\nPress Enter to exit...");
+        let mut dummy = String::new();
+        let _ = io::stdin().read_line(&mut dummy);
+    }
+    res
 }

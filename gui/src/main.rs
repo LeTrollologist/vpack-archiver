@@ -8,7 +8,13 @@ VPack Archiver GUI — eframe/egui entry point
 mod app;
 
 fn main() -> eframe::Result<()> {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("VPack Archiver GUI encountered an error:\n\n{}", info);
+        let _ = std::fs::write("vpack-gui-crash.log", &msg);
+    }));
+
     let native_options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Glow,
         viewport: egui::ViewportBuilder::default()
             .with_title("VPack Archiver 2.0 — Universal Archive Manager")
             .with_inner_size([1020.0, 640.0])

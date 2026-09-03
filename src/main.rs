@@ -345,6 +345,17 @@ fn main() -> Result<()> {
             Ok(())
         }
         None => {
+            // If vpack-gui.exe is in the same directory, launch it automatically on double-click
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(dir) = exe_path.parent() {
+                    let gui_path = dir.join("vpack-gui.exe");
+                    if gui_path.exists() {
+                        let _ = std::process::Command::new(gui_path).spawn();
+                        return Ok(());
+                    }
+                }
+            }
+
             println!("========================================================");
             println!(" 🗁 VPack Archiver (WinRAR for .vpack) v2.0.0");
             println!("========================================================");

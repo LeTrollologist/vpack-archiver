@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 vpack-archiver = { path = ".." }
-eframe         = { version = "0.31", default-features = true }
+eframe         = { version = "0.31", default-features = false, features = ["glow", "default_fonts", "accesskit"] }
 egui           = "0.31"
 egui_extras    = "0.31"
 rfd            = "0.15"

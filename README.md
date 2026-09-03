@@ -60,7 +60,11 @@
 Pre-built standalone binary releases for **Windows (x86_64)** are available on the [GitHub Releases page](https://github.com/LeTrollologist/vpack-archiver/releases).
 
 #### Windows (x86_64)
-Download `vpack-archiver-v2.0.0-windows-x86_64.zip` or the native `vpack-archiver-v2.0.0-windows-x86_64.vpack` bundle from the [latest release](https://github.com/LeTrollologist/vpack-archiver/releases). Unpack to access both the CLI (`vpack.exe`) and native desktop GUI (`vpack-gui.exe`).
+
+> 💡 For comprehensive installation guides covering all deployment options, see [**INSTALL.md**](INSTALL.md).
+
+* **One-Click Installer (Recommended)**: Download `vpack-installer.exe` and `vpack-archiver-v2.0.0-windows-x86_64.vpack` from the [latest release](https://github.com/LeTrollologist/vpack-archiver/releases), then run `vpack-installer.exe`. It configures your PATH, registers `.vpack` file associations for the GUI, and adds shortcuts automatically.
+* **Portable Bundle**: Download `vpack-archiver-v2.0.0-windows-x86_64.zip` or the native `.vpack` package to extract anywhere.
 
 ### Building from Source
 

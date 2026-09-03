@@ -36,7 +36,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT_DIR / "dist"
 
 CANONICAL_ASSET_REGEX = re.compile(
-    r"^vpack-archiver-v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?-(windows)-(x86_64)\.(zip|vpack)$"
+    r"^(vpack-archiver-v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?-(windows)-(x86_64)\.(zip|vpack)|vpack-installer\.exe)$"
 )
 
 
@@ -216,7 +216,16 @@ def stage_package(version: str, tag_dir: Path):
     vpack_cmd = [str(release_bin), "a", str(vpack_path)] + vpack_items + ["-c", "9"]
     run_cmd(vpack_cmd)
 
-    return [zip_path, vpack_path]
+    # 3. Copy vpack-installer.exe to tag_dir as standalone release asset
+    installer_bin = ROOT_DIR / "target" / "release" / "vpack-installer.exe"
+    assets = [zip_path, vpack_path]
+    if installer_bin.exists():
+        installer_dest = tag_dir / "vpack-installer.exe"
+        shutil.copy2(installer_bin, installer_dest)
+        print(f"  Bundling standalone {installer_dest.name} ({installer_dest.stat().st_size // 1024} KB)")
+        assets.append(installer_dest)
+
+    return assets
 
 
 def stage_verify(tag_dir: Path, assets: list):
@@ -433,7 +442,7 @@ def stage_publish(
         else "🟢 Verified Clean / Independent Permalinks Available"
     )
 
-    release_body = f"""## 🗁 VPack Archiver {version} · Universal Archive Manager
+    release_body = rf"""## 🗁 VPack Archiver {version} · Universal Archive Manager
 
 Modern, ultra-fast universal archive manager, compressor, and WinRAR/7-Zip equivalent for `.vpack` archives built with 100% pure Rust.
 
@@ -461,20 +470,31 @@ Modern, ultra-fast universal archive manager, compressor, and WinRAR/7-Zip equiv
 ### 📦 Downloads & Assets
 | Asset | Format | Description |
 | :--- | :--- | :--- |
-| `vpack-archiver-{version}-windows-x86_64.zip` | Standard Zip | Portable release bundle (`vpack-archiver.exe`, `vpack.exe`, docs) |
-| `vpack-archiver-{version}-windows-x86_64.vpack` | VPack Archive | Native VPK2 archive (extract with `vpack x`) |
+| `vpack-installer.exe` | Windows Executable | One-click pure-Rust installer (auto-extracts, updates PATH, configures Explorer) |
+| `vpack-archiver-{version}-windows-x86_64.zip` | Standard Zip | Portable release bundle (`vpack-archiver.exe`, `vpack.exe`, `vpack-gui.exe`, docs) |
+| `vpack-archiver-{version}-windows-x86_64.vpack` | VPack Archive | Native VPK2 archive (extract with `vpack x` or install with `vpack-installer.exe`) |
 | `SHA256SUMS.txt` | SHA-256 | Cryptographic checksums of all release assets |
 | `virustotal-summary.txt` | Security Audit | Multi-engine antivirus analysis report |
 
 ### 🚀 Installation Instructions
 
-#### Option 1: Native Zip Extract
+#### Option 1: One-Click Rust Installer (Recommended)
+Download `vpack-installer.exe` and `vpack-archiver-{version}-windows-x86_64.vpack` into the same directory and run:
 ```powershell
-Expand-Archive -Path .\\vpack-archiver-{version}-windows-x86_64.zip -DestinationPath C:\\Tools\\VPack
-[Environment]::SetEnvironmentVariable("PATH", "C:\\Tools\\VPack;" + $env:PATH, "User")
+.\vpack-installer.exe
+```
+Or for silent / automated script installation:
+```powershell
+.\vpack-installer.exe --silent
 ```
 
-#### Option 2: Extract via VPack Archiver
+#### Option 2: Native Zip Extract
+```powershell
+Expand-Archive -Path .\vpack-archiver-{version}-windows-x86_64.zip -DestinationPath C:\Tools\VPack
+[Environment]::SetEnvironmentVariable("PATH", "C:\Tools\VPack;" + $env:PATH, "User")
+```
+
+#### Option 3: Extract via VPack Archiver
 ```bash
 vpack x vpack-archiver-{version}-windows-x86_64.vpack -o ./vpack
 ```

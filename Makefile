@@ -1,6 +1,6 @@
 TAG ?= v2.0.0
 
-.PHONY: release draft build check clean test gui
+.PHONY: release draft build check clean test gui installer
 
 release:
 	python scripts/pipeline.py $(TAG)
@@ -13,6 +13,9 @@ build:
 
 gui:
 	cargo build --release -p vpack-gui
+
+installer:
+	cargo build --release -p vpack-installer
 
 check:
 	cargo check --workspace

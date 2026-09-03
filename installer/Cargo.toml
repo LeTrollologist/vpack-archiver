@@ -1,0 +1,17 @@
+[package]
+name        = "vpack-installer"
+version     = "2.0.0"
+edition     = "2021"
+authors     = ["VPack Community"]
+license     = "MIT OR Apache-2.0"
+description = "VPack Archiver native Windows installer and package deployment utility"
+
+[[bin]]
+name = "vpack-installer"
+path = "src/main.rs"
+
+[dependencies]
+vpack-archiver = { path = ".." }
+clap           = { version = "4", features = ["derive"] }
+anyhow         = "1"
+winreg         = "0.52"

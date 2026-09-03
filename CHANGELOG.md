@@ -18,9 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Archive info panel: metadata, creator, comment, security flags, total sizes.
   - Background-threaded operations — UI stays responsive during long compress/extract.
   - Menu bar: File / Archive / Selection / Help.
-* **Cargo Workspace**: Repo is now a multi-crate workspace (`vpack-archiver` library + CLI, `vpack-gui` GUI binary).
+* **Cargo Workspace**: Repo is now a multi-crate workspace (`vpack-archiver` library + CLI, `vpack-gui` GUI binary, and `vpack-installer` native Windows installer).
+* **Native Windows Installer (`vpack-installer.exe`)**: Standalone pure-Rust installer for `.vpack` archives. Unpacks packages to `%LOCALAPPDATA%\Programs\VPack`, adds the binary to the User `PATH`, registers Explorer context menu handlers, and creates Start Menu and Desktop shortcuts.
 * **Shared Core Library (`vpack_core`)**: `archive`, `bench`, `verify` modules exposed as a public library crate for both CLI and GUI to share.
-* **Release Bundle**: `vpack-gui.exe` is now distributed alongside `vpack-archiver.exe` and `vpack.exe` in every `.zip` and `.vpack` release asset.
+* **Release Bundle**: `vpack-gui.exe` is now distributed alongside `vpack-archiver.exe` and `vpack.exe` in every `.zip` and `.vpack` release asset, with `vpack-installer.exe` published as a standalone setup tool.
 
 ### Changed
 * Version bumped to `2.0.0` across all crates.

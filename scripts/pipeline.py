@@ -165,13 +165,19 @@ def stage_package(version: str, tag_dir: Path):
     staging_dir.mkdir(parents=True, exist_ok=True)
 
     release_bin = ROOT_DIR / "target" / "release" / "vpack-archiver.exe"
+    gui_bin     = ROOT_DIR / "target" / "release" / "vpack-gui.exe"
     if not release_bin.exists():
         print(f"\033[1;31mError: {release_bin} not found. Run build first.\033[0m")
         sys.exit(1)
 
     # Copy files into staging
     shutil.copy2(release_bin, staging_dir / "vpack-archiver.exe")
-    shutil.copy2(release_bin, staging_dir / "vpack.exe")  # Handy alias
+    shutil.copy2(release_bin, staging_dir / "vpack.exe")  # Handy CLI alias
+    if gui_bin.exists():
+        shutil.copy2(gui_bin, staging_dir / "vpack-gui.exe")
+        print(f"  Bundling vpack-gui.exe ({gui_bin.stat().st_size // 1024} KB)")
+    else:
+        print("  [!] vpack-gui.exe not found — GUI will be absent from release bundle")
     shutil.copy2(ROOT_DIR / "README.md", staging_dir / "README.md")
     if (ROOT_DIR / "LICENSE").exists():
         shutil.copy2(ROOT_DIR / "LICENSE", staging_dir / "LICENSE")
@@ -197,18 +203,17 @@ def stage_package(version: str, tag_dir: Path):
     if vpack_path.exists():
         vpack_path.unlink()
 
-    vpack_cmd = [
-        str(release_bin),
-        "a",
-        str(vpack_path),
+    vpack_items = [
         str(staging_dir / "vpack-archiver.exe"),
         str(staging_dir / "vpack.exe"),
         str(staging_dir / "README.md"),
         str(staging_dir / "LICENSE"),
         str(staging_dir / "CHANGELOG.md"),
-        "-c",
-        "9",
     ]
+    if (staging_dir / "vpack-gui.exe").exists():
+        vpack_items.append(str(staging_dir / "vpack-gui.exe"))
+
+    vpack_cmd = [str(release_bin), "a", str(vpack_path)] + vpack_items + ["-c", "9"]
     run_cmd(vpack_cmd)
 
     return [zip_path, vpack_path]

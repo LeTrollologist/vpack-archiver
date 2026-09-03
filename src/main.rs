@@ -19,7 +19,7 @@ use std::time::SystemTime;
 #[derive(Parser, Debug)]
 #[command(
     name = "vpack",
-    version = "1.2.0",
+    version = "2.0.0",
     about = "VPack Archiver - The universal WinRAR & 7-Zip equivalent for .vpack archives"
 )]
 struct Cli {
@@ -346,7 +346,7 @@ fn main() -> Result<()> {
         }
         None => {
             println!("========================================================");
-            println!(" 🗁 VPack Archiver (WinRAR for .vpack) v1.2.0");
+            println!(" 🗁 VPack Archiver (WinRAR for .vpack) v2.0.0");
             println!("========================================================");
             println!(" Commands:");
             println!("   vpack <archive.vpack>             Open & Inspect (WinRAR UI)");

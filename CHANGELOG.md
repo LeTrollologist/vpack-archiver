@@ -5,6 +5,29 @@ All notable changes to the `vpack-archiver` project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-02
+
+### Added
+* **Native Windows GUI (`vpack-gui.exe`)**: Full WinRAR-style desktop archive manager built with pure-Rust [egui](https://github.com/emilk/egui)/[eframe](https://github.com/emilk/eframe) — no Electron, no WebView, no Node.js.
+  - WinRAR-style sortable file table (Name, Orig Size, Packed, Ratio, CRC-32, Modified, Method).
+  - Toolbar: 📂 Open · ✚ Add · 📤 Extract · 🔍 Test · ℹ Info.
+  - Native Windows file/folder dialogs via `rfd`.
+  - Drag-and-drop `.vpack` files directly onto the window.
+  - Add dialog: multi-file/folder picker, Deflate vs LZ4 codec selector, level slider, optional password.
+  - Extract dialog: destination folder picker, password input, extract-selected-only option.
+  - Archive info panel: metadata, creator, comment, security flags, total sizes.
+  - Background-threaded operations — UI stays responsive during long compress/extract.
+  - Menu bar: File / Archive / Selection / Help.
+* **Cargo Workspace**: Repo is now a multi-crate workspace (`vpack-archiver` library + CLI, `vpack-gui` GUI binary).
+* **Shared Core Library (`vpack_core`)**: `archive`, `bench`, `verify` modules exposed as a public library crate for both CLI and GUI to share.
+* **Release Bundle**: `vpack-gui.exe` is now distributed alongside `vpack-archiver.exe` and `vpack.exe` in every `.zip` and `.vpack` release asset.
+
+### Changed
+* Version bumped to `2.0.0` across all crates.
+* Archive creator string updated to `VPack Archiver v2.0`.
+
+---
+
 ## [1.2.0] - 2026-09-02
 
 ### Added

@@ -308,7 +308,7 @@ impl VpackArchive {
 
         let mut metadata = ArchiveMetadata {
             created_at: now_ts,
-            creator: "VPack Archiver v1.2".into(),
+            creator: "VPack Archiver v2.0".into(),
             comment,
             total_uncompressed_bytes: 0,
             total_compressed_bytes: 0,

@@ -62,15 +62,16 @@ python scripts/pipeline.py v1.2.0 --draft
 ## 4. Output Layout (`dist/`)
 
 ```text
-dist/v1.2.0/
+dist/v2.0.0/
 ├── windows-staging/                                    # Staging folder
-│   ├── vpack-archiver.exe                              # Release binary
-│   ├── vpack.exe                                       # Convenience alias
+│   ├── vpack-archiver.exe                              # CLI release binary
+│   ├── vpack.exe                                       # Convenience alias for CLI
+│   ├── vpack-gui.exe                                   # GUI desktop application
 │   ├── README.md                                       # Documentation
 │   ├── LICENSE                                         # License
 │   └── CHANGELOG.md                                    # Version history
-├── vpack-archiver-v1.2.0-windows-x86_64.zip            # Standard Zip distribution
-├── vpack-archiver-v1.2.0-windows-x86_64.vpack          # VPack distribution
+├── vpack-archiver-v2.0.0-windows-x86_64.zip            # Standard Zip distribution
+├── vpack-archiver-v2.0.0-windows-x86_64.vpack          # VPack distribution
 ├── SHA256SUMS.txt                                      # Cryptographic checksums
 ├── release_notes.md                                    # Release markdown body
 └── audit/

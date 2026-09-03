@@ -1,6 +1,6 @@
-TAG ?= v1.2.0
+TAG ?= v2.0.0
 
-.PHONY: release draft build check clean test
+.PHONY: release draft build check clean test gui
 
 release:
 	python scripts/pipeline.py $(TAG)
@@ -10,6 +10,9 @@ draft:
 
 build:
 	python scripts/pipeline.py $(TAG) --no-publish
+
+gui:
+	cargo build --release -p vpack-gui
 
 check:
 	cargo check --workspace

@@ -1,0 +1,21 @@
+[package]
+name        = "vpack-gui"
+version     = "2.0.0"
+edition     = "2021"
+authors     = ["VPack Community"]
+license     = "MIT OR Apache-2.0"
+description = "VPack Archiver GUI — native WinRAR-style desktop archive manager"
+
+[[bin]]
+name = "vpack-gui"
+path = "src/main.rs"
+
+[dependencies]
+vpack-archiver = { path = ".." }
+eframe         = { version = "0.31", default-features = true }
+egui           = "0.31"
+egui_extras    = "0.31"
+rfd            = "0.15"
+anyhow         = "1"
+chrono         = { version = "0.4", features = ["serde"] }
+

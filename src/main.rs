@@ -381,9 +381,33 @@ fn main() -> Result<()> {
             }
 
             match cmd.spawn() {
-                Ok(_) => {
-                    println!("✓ Successfully launched VPack Archiver GUI ({})", gui_path.display());
-                    Ok(())
+                Ok(mut child) => {
+                    // Monitor child process across window creation window
+                    let mut crashed = false;
+                    let mut exit_code = 0;
+                    for _ in 0..10 {
+                        std::thread::sleep(std::time::Duration::from_millis(400));
+                        if let Ok(Some(status)) = child.try_wait() {
+                            crashed = true;
+                            exit_code = status.code().unwrap_or(-1);
+                            break;
+                        }
+                    }
+
+                    if crashed {
+                        eprintln!("Error [ERR_GUI_CRASHED (code 13)]: GUI process terminated unexpectedly (exit code: {} / {:#x}).", exit_code, exit_code as u32);
+                        if exit_code as u32 == 0xc0000005 {
+                            eprintln!("Details: 0xc0000005 (STATUS_ACCESS_VIOLATION).");
+                            eprintln!("The graphics engine (eframe/winit/OpenGL) encountered an access violation while creating the GPU window context on this system.");
+                            eprintln!("\nTip: In the meantime, you can use the interactive visual table UI directly in your console:");
+                            eprintln!("  vpack l <archive.vpack>   (WinRAR visual inspector)");
+                            eprintln!("  vpack ui <archive.vpack>  (Interactive table explorer)");
+                        }
+                        std::process::exit(13);
+                    } else {
+                        println!("✓ Successfully launched VPack Archiver GUI ({})", gui_path.display());
+                        Ok(())
+                    }
                 }
                 Err(e) => {
                     eprintln!("Error [ERR_GUI_SPAWN_FAILED (code 12)]: failed to launch GUI process: {}", e);

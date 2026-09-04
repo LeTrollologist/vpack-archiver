@@ -59,12 +59,34 @@
 
 Pre-built standalone binary releases for **Windows (x86_64)** are available on the [GitHub Releases page](https://github.com/LeTrollologist/vpack-archiver/releases).
 
-#### Windows (x86_64)
+#### Windows (x86_64) Installation
 
-> 💡 For comprehensive installation guides covering all deployment options, see [**INSTALL.md**](INSTALL.md).
+> 💡 For comprehensive installation and upgrade guides covering all deployment options, see [**INSTALL.md**](INSTALL.md).
 
-* **One-Click Installer (Recommended)**: Download `vpack-installer.exe` and `vpack-archiver-v2.0.0-windows-x86_64.vpack` from the [latest release](https://github.com/LeTrollologist/vpack-archiver/releases), then run `vpack-installer.exe`. It configures your PATH, registers `.vpack` file associations for the GUI, and adds shortcuts automatically.
-* **Portable Bundle**: Download `vpack-archiver-v2.0.0-windows-x86_64.zip` or the native `.vpack` package to extract anywhere.
+* **Method 1: One-Click Installer (Recommended)**:
+  1. Download `vpack-installer.exe` and `vpack-archiver-v2.0.1-windows-x86_64.vpack` into the same folder.
+  2. Double-click `vpack-installer.exe` (or run `.\vpack-installer.exe --silent` from PowerShell).
+  3. It automatically installs to `%LOCALAPPDATA%\Programs\VPack`, adds VPack to your user `PATH`, registers `.vpack` context menus, and creates Desktop/Start Menu shortcuts.
+* **Method 2: Portable ZIP**:
+  1. Download `vpack-archiver-v2.0.1-windows-x86_64.zip`.
+  2. Extract with `Expand-Archive .\vpack-archiver-v2.0.1-windows-x86_64.zip -DestinationPath C:\Tools\VPack`.
+  3. Optionally add `C:\Tools\VPack` to your user `PATH`.
+
+### 🔄 How to Update VPack Archiver
+
+Updating an existing installation is seamless and preserves your configuration:
+
+* **Using the Installer**:
+  1. Download the latest `vpack-installer.exe` and `vpack-archiver-vX.Y.Z-windows-x86_64.vpack` from [Releases](https://github.com/LeTrollologist/vpack-archiver/releases).
+  2. Run `.\vpack-installer.exe --silent` (or double-click it).
+  3. The installer overwrites existing binaries in `%LOCALAPPDATA%\Programs\VPack` with the new version while preserving existing shortcuts and registry settings.
+* **Using Existing VPack CLI (Dog-Fooding Update)**:
+  ```powershell
+  # Extract new package directly over existing install directory
+  vpack x vpack-archiver-v2.0.1-windows-x86_64.vpack -o "$env:LOCALAPPDATA\Programs\VPack"
+  ```
+* **Updating Portable ZIP**:
+  Extract the new zip file into your existing portable folder, replacing the files.
 
 ### Building from Source
 
@@ -73,11 +95,13 @@ Ensure you have a modern Rust toolchain installed (1.70+):
 ```bash
 git clone https://github.com/LeTrollologist/vpack-archiver.git
 cd vpack-archiver
-cargo build --release
+cargo build --release --workspace
 ```
 
-The optimized binary is produced at:
-* Windows: `target/release/vpack-archiver.exe`
+The optimized binaries are produced at:
+* `target/release/vpack-archiver.exe` (CLI suite)
+* `target/release/vpack-gui.exe` (Desktop GUI)
+* `target/release/vpack-installer.exe` (Setup installer)
 * Unix (source build): `target/release/vpack-archiver`
 
 ---

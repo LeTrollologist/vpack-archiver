@@ -5,13 +5,14 @@ Complete, step-by-step installation instructions for **VPack Archiver 2.0** on W
 ---
 
 ## 📑 Methods Overview
-
-| Method | Target Audience | Highlights |
-| :--- | :--- | :--- |
-| **Method 1: One-Click Rust Installer** *(Recommended)* | End Users & Desktop | Automated directory setup, User `PATH` updates, Desktop & Start Menu shortcuts, `.vpack` Explorer context menu integration |
-| **Method 2: Native `.vpack` Deployment** | Power Users & Developers | Extract and deploy directly using existing `vpack` CLI binary or dog-fooding |
-| **Method 3: Portable ZIP Setup** | System Admins & Portable Drives | Zero installation, extract anywhere, no registry entries required |
-| **Method 4: Building from Source** | Developers & Contributors | Pure-Rust Cargo build with SSE4.2 / hardware acceleration |
+ 
+ | Method | Target Audience | Highlights |
+ | :--- | :--- | :--- |
+ | **Method 1: One-Click Rust Installer** *(Recommended)* | End Users & Desktop | Automated directory setup, User `PATH` updates, Desktop & Start Menu shortcuts, `.vpack` Explorer context menu integration |
+ | **Method 2: Native `.vpack` Deployment** | Power Users & Developers | Extract and deploy directly using existing `vpack` CLI binary or dog-fooding |
+ | **Method 3: Portable ZIP Setup** | System Admins & Portable Drives | Zero installation, extract anywhere, no registry entries required |
+ | **Method 4: Building from Source** | Developers & Contributors | Pure-Rust Cargo build with SSE4.2 / hardware acceleration |
+ | **🔄 Updating Existing Install** | Existing Users | In-place upgrade instructions for Installer, CLI, and Portable setups |
 
 ---
 
@@ -111,6 +112,53 @@ The resulting binaries will be available in `target/release/`:
 - `vpack-archiver.exe` (CLI suite)
 - `vpack-gui.exe` (Desktop GUI application)
 - `vpack-installer.exe` (Standalone Windows installer)
+
+---
+
+## 🔄 How to Update VPack Archiver
+
+Upgrading an existing installation to a newer version is fast and non-destructive. All existing configurations, file associations, and shortcuts are preserved.
+
+### Approach 1: Upgrade via Installer (Recommended)
+If you originally installed VPack Archiver using `vpack-installer.exe`:
+
+1. Close any running instances of **VPack Archiver GUI** or open terminals running `vpack`.
+2. Download the newest `vpack-installer.exe` and `vpack-archiver-vX.Y.Z-windows-x86_64.vpack` from [GitHub Releases](https://github.com/LeTrollologist/vpack-archiver/releases) into the same folder (e.g. `Downloads`).
+3. Run the installer:
+   ```powershell
+   .\vpack-installer.exe
+   ```
+   *Or for silent/unattended upgrade:*
+   ```powershell
+   .\vpack-installer.exe --silent
+   ```
+4. The installer detects existing binaries in `%LOCALAPPDATA%\Programs\VPack` and replaces them with the updated version without requiring you to reconfigure PATH or desktop shortcuts.
+
+---
+
+### Approach 2: In-Place Upgrade via VPack CLI (Dog-Fooding)
+If `vpack` is already on your system PATH:
+
+1. Download the new release package (e.g. `vpack-archiver-v2.0.1-windows-x86_64.vpack`).
+2. Run PowerShell as your normal user and extract directly to your existing installation directory:
+   ```powershell
+   # Default installation location
+   vpack x .\vpack-archiver-v2.0.1-windows-x86_64.vpack -o "$env:LOCALAPPDATA\Programs\VPack"
+   ```
+   *(If you installed to a custom directory such as `C:\Tools\VPack`, substitute that path for `-o`).*
+3. Verify the updated version:
+   ```powershell
+   vpack --version
+   ```
+
+---
+
+### Approach 3: Upgrade Portable ZIP Installation
+1. Download `vpack-archiver-vX.Y.Z-windows-x86_64.zip`.
+2. Extract the files directly over your existing portable directory:
+   ```powershell
+   Expand-Archive -Path .\vpack-archiver-v2.0.1-windows-x86_64.zip -DestinationPath C:\Tools\VPack -Force
+   ```
 
 ---
 

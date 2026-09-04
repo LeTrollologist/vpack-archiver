@@ -462,18 +462,19 @@ def stage_publish(
 Modern, ultra-fast universal archive manager, compressor, and WinRAR/7-Zip equivalent for `.vpack` archives built with 100% pure Rust.
 
 ### ✨ What's New in {version}
-* **🚀 Multi-Codec Compression Engine**:
-  - Added **LZ4 Streaming Compression** (`-C lz4`) for ultra-high throughput compression and instant decompression.
-  - Retained **Deflate Compression** (`-C deflate`) for high compatibility and strong compression ratios.
-  - New `-C/--codec` flag allowing users to select between `deflate` (default) and `lz4` (fastest).
-* **⚡ Multi-Codec CPU Benchmark Suite (`vpack b`)**:
-  - Expanded integrated benchmark with 4 hardware-accelerated passes: Deflate Compress, Deflate Decompress, LZ4 Compress, and SSE4.2 CRC-32.
-* **🛡️ Hollow Canvas Local Release Pipeline**:
-  - Replaced GitHub Actions entirely with a deterministic local build, test, audit, package, verify, VirusTotal scan, and publish pipeline (`scripts/pipeline.py`).
-  - Automatic VirusTotal API v3 multi-engine antivirus verification.
-  - Cryptographic verification via `SHA256SUMS.txt` and native `vpack t` integrity tests.
-* **📦 Self-Packaging (Dog-Fooding)**:
-  - Releases are distributed in both portable `.zip` and native `.vpack` formats, built using the freshly compiled release binary itself.
+* **🔐 Interactive GUI Password Handling**:
+  - Added modal password dialog prompt in `vpack-gui.exe` when opening, listing, testing, or extracting encrypted `.vpack` archives.
+  - Cached credentials within active GUI session to avoid repeated prompts during multi-file operations.
+* **🛡️ Core Archive Security & Path Traversal Fix**:
+  - Implemented Zip Slip path traversal mitigation (`sanitize_archive_path`), rejecting malicious path prefixes (`../`, `..\`, absolute paths).
+  - Fixed underflow boundary check in RFC 8032 Ed25519 signature validation.
+  - Enabled full digital signature verification inside integrity test mode (`vpack t`).
+* **🪟 Windows Runtime & TUI Stability**:
+  - Fixed CRT access violation (`STATUS_ACCESS_VIOLATION` / `0xc0000005`) in WinRAR console explorer by migrating to pure-Rust UTC timestamp parsing.
+* **🚀 Engine & Container Metadata Enhancements**:
+  - Fixed container header metadata update slices for file and byte totals across compress/append.
+  - Added support for stored uncompressed codec (`-C store`).
+  - Added `WebView2Loader.dll` bundling in native `.vpack` distributions for complete standalone offline execution.
 
 ### 🛡️ Security & VirusTotal Verification
 | Security Check | Result | Verification Link |
@@ -491,33 +492,77 @@ Modern, ultra-fast universal archive manager, compressor, and WinRAR/7-Zip equiv
 | `SHA256SUMS.txt` | SHA-256 | Cryptographic checksums of all release assets |
 | `virustotal-summary.txt` | Security Audit | Multi-engine antivirus analysis report |
 
-### 🚀 Installation Instructions
+### 🚀 Installation & Update Guide
 
-#### Option 1: One-Click Rust Installer (Recommended)
-Download `vpack-installer.exe` and `vpack-archiver-{version}-windows-x86_64.vpack` into the same directory and run:
+#### 📥 How to Install (New Users)
+
+##### Option 1: One-Click Rust Installer (Recommended)
+1. Download `vpack-installer.exe` and `vpack-archiver-{version}-windows-x86_64.vpack` into the same folder (e.g. `Downloads`).
+2. Run the installer:
 ```powershell
 .\vpack-installer.exe
 ```
-Or for silent / automated script installation:
+Or install unattended / silently with all defaults (sets PATH, desktop shortcuts, and `.vpack` file associations):
 ```powershell
 .\vpack-installer.exe --silent
 ```
+*Destination*: `%LOCALAPPDATA%\Programs\VPack` (or custom path via `-d C:\Custom\Path`).
 
-#### Option 2: Native Zip Extract
+##### Option 2: Portable ZIP Extraction
+1. Download `vpack-archiver-{version}-windows-x86_64.zip`.
+2. Extract to your desired directory:
 ```powershell
 Expand-Archive -Path .\vpack-archiver-{version}-windows-x86_64.zip -DestinationPath C:\Tools\VPack
-[Environment]::SetEnvironmentVariable("PATH", "C:\Tools\VPack;" + $env:PATH, "User")
+```
+3. Add to your User `PATH` (optional):
+```powershell
+[Environment]::SetEnvironmentVariable("PATH", "C:\Tools\VPack;" + [Environment]::GetEnvironmentVariable("PATH", "User"), "User")
 ```
 
-#### Option 3: Extract via VPack Archiver
+##### Option 3: Extract via VPack CLI (Dog-Fooding)
 ```bash
 vpack x vpack-archiver-{version}-windows-x86_64.vpack -o ./vpack
 ```
 
-### 🔒 Cryptographic Verification
-Verify all assets against `SHA256SUMS.txt`:
+---
+
+#### 🔄 How to Update (Existing Users)
+
+Upgrading to **{version}** is non-destructive — your existing shell shortcuts, context menus, and configurations will be preserved:
+
+##### Method A: Upgrade via One-Click Installer (Fastest)
+1. Close any running instances of **VPack Archiver GUI** or command line processes.
+2. Download the latest `vpack-installer.exe` and `vpack-archiver-{version}-windows-x86_64.vpack`.
+3. Run the installer in silent mode to update in-place:
 ```powershell
+.\vpack-installer.exe --silent
+```
+The installer automatically replaces existing binaries in `%LOCALAPPDATA%\Programs\VPack` with the new version.
+
+##### Method B: Direct In-Place CLI Upgrade
+If `vpack` is already in your `PATH`, simply unpack the new `.vpack` archive directly into your installation directory:
+```powershell
+# In-place overwrite for default install:
+vpack x .\vpack-archiver-{version}-windows-x86_64.vpack -o "$env:LOCALAPPDATA\Programs\VPack"
+
+# Verify upgrade:
+vpack --version
+```
+
+##### Method C: Update Portable ZIP
+Extract `vpack-archiver-{version}-windows-x86_64.zip` over your existing portable directory, choosing to overwrite existing files:
+```powershell
+Expand-Archive -Path .\vpack-archiver-{version}-windows-x86_64.zip -DestinationPath C:\Tools\VPack -Force
+```
+
+---
+
+### 🔒 Cryptographic Verification
+Verify all downloaded assets against `SHA256SUMS.txt`:
+```powershell
+certutil -hashfile vpack-installer.exe SHA256
 certutil -hashfile vpack-archiver-{version}-windows-x86_64.zip SHA256
+certutil -hashfile vpack-archiver-{version}-windows-x86_64.vpack SHA256
 vpack t vpack-archiver-{version}-windows-x86_64.vpack
 ```
 """

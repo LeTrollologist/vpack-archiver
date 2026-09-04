@@ -62,16 +62,18 @@ python scripts/pipeline.py v1.2.0 --draft
 ## 4. Output Layout (`dist/`)
 
 ```text
-dist/v2.0.0/
+dist/v2.0.1/
 ├── windows-staging/                                    # Staging folder
 │   ├── vpack-archiver.exe                              # CLI release binary
 │   ├── vpack.exe                                       # Convenience alias for CLI
 │   ├── vpack-gui.exe                                   # GUI desktop application
+│   ├── WebView2Loader.dll                              # Evergreen WebView2 loader
 │   ├── README.md                                       # Documentation
 │   ├── LICENSE                                         # License
 │   └── CHANGELOG.md                                    # Version history
-├── vpack-archiver-v2.0.0-windows-x86_64.zip            # Standard Zip distribution
-├── vpack-archiver-v2.0.0-windows-x86_64.vpack          # VPack distribution
+├── vpack-installer.exe                                 # Standalone Windows installer
+├── vpack-archiver-v2.0.1-windows-x86_64.zip            # Standard Zip distribution
+├── vpack-archiver-v2.0.1-windows-x86_64.vpack          # VPack distribution
 ├── SHA256SUMS.txt                                      # Cryptographic checksums
 ├── release_notes.md                                    # Release markdown body
 └── audit/
@@ -85,27 +87,38 @@ dist/v2.0.0/
 
 ## 5. Verification & Integrity
 
-To verify released packages:
+To verify released packages against `SHA256SUMS.txt`:
 ```powershell
 # Check SHA-256
-certutil -hashfile vpack-archiver-v1.2.0-windows-x86_64.zip SHA256
+certutil -hashfile vpack-installer.exe SHA256
+certutil -hashfile vpack-archiver-v2.0.1-windows-x86_64.zip SHA256
+certutil -hashfile vpack-archiver-v2.0.1-windows-x86_64.vpack SHA256
 
 # Verify VPACK integrity and CRC-32
-vpack t vpack-archiver-v1.2.0-windows-x86_64.vpack
+vpack t vpack-archiver-v2.0.1-windows-x86_64.vpack
 ```
 
 ---
 
-## 6. Installation & Extraction
+## 6. Installation & Updating
 
-### Option A: Via Native Windows Zip
+### Option A: One-Click Rust Installer (Recommended)
 ```powershell
-Expand-Archive -Path .\vpack-archiver-v1.2.0-windows-x86_64.zip -DestinationPath C:\Tools\VPack
+# Interactive installer
+.\vpack-installer.exe
+
+# Silent / unattended install or upgrade
+.\vpack-installer.exe --silent
+```
+
+### Option B: Via Native Windows Zip
+```powershell
+Expand-Archive -Path .\vpack-archiver-v2.0.1-windows-x86_64.zip -DestinationPath C:\Tools\VPack -Force
 [Environment]::SetEnvironmentVariable("PATH", "C:\Tools\VPack;" + $env:PATH, "User")
 ```
 
-### Option B: Via VPack Archiver
-```bash
-# Extract all contents
-vpack x vpack-archiver-v1.2.0-windows-x86_64.vpack -o ./vpack/
+### Option C: Updating via Existing VPack CLI (Dog-Fooding)
+```powershell
+# In-place upgrade over existing installation
+vpack x .\vpack-archiver-v2.0.1-windows-x86_64.vpack -o "$env:LOCALAPPDATA\Programs\VPack"
 ```

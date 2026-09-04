@@ -54,23 +54,48 @@ fn find_candidate_package() -> Option<PathBuf> {
     if let Ok(exe_path) = env::current_exe() {
         if let Some(dir) = exe_path.parent() {
             check_dirs.push(dir.to_path_buf());
-            // Also parent of installer (e.g. dist/ or release/)
             if let Some(parent) = dir.parent() {
                 check_dirs.push(parent.to_path_buf());
             }
         }
     }
 
-    // 3. User Downloads directory
-    if let Ok(user_profile) = env::var("USERPROFILE") {
-        let p = PathBuf::from(&user_profile);
-        check_dirs.push(p.join("Downloads"));
-        check_dirs.push(p.join("Desktop"));
-        check_dirs.push(p);
+    // Pass 1: Look specifically for "vpack-archiver-*.vpack"
+    for dir in &check_dirs {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    let lower = name.to_lowercase();
+                    if lower.starts_with("vpack-archiver") && lower.ends_with(".vpack") {
+                        return Some(path);
+                    }
+                }
+            }
+        }
     }
 
-    for dir in check_dirs {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
+    // Pass 2: Look in Downloads/Desktop for "vpack-archiver-*.vpack"
+    if let Ok(user_profile) = env::var("USERPROFILE") {
+        let p = PathBuf::from(&user_profile);
+        for user_dir in [p.join("Downloads"), p.join("Desktop")] {
+            if let Ok(entries) = std::fs::read_dir(&user_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        let lower = name.to_lowercase();
+                        if lower.starts_with("vpack-archiver") && lower.ends_with(".vpack") {
+                            return Some(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Pass 3: Fall back to any .vpack ONLY in the current directory or next to installer
+    for dir in &check_dirs {
+        if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {

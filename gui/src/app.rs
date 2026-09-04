@@ -161,7 +161,18 @@ impl Default for VpackApp {
 
 impl VpackApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Default::default()
+        let mut app = Self::default();
+
+        // Check if an archive path was passed as a command line argument (e.g. vpack gui <file.vpack>)
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() > 1 {
+            let candidate = PathBuf::from(&args[1]);
+            if candidate.exists() && candidate.is_file() {
+                app.open_archive_path(candidate, None);
+            }
+        }
+
+        app
     }
 
     // ── helpers ──────────────────────────────────────────────────────────

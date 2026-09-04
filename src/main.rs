@@ -120,6 +120,12 @@ enum Commands {
         #[arg(short = 'o', long, default_value = "vpack-publisher")]
         out: String,
     },
+    /// [g] Launch the native desktop Graphical User Interface (GUI)
+    #[command(alias = "g")]
+    Gui {
+        /// Optional .vpack archive path to open immediately
+        archive: Option<PathBuf>,
+    },
     /// Interactive Terminal User Interface (TUI)
     Ui {
         /// Target .vpack archive path
@@ -339,6 +345,52 @@ fn main() -> Result<()> {
             println!("  Public Key:  {}", pub_file);
             Ok(())
         }
+        Some(Commands::Gui { archive }) => {
+            let exe_path = match std::env::current_exe() {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Error [ERR_ENV (code 10)]: failed to determine current executable path: {}", e);
+                    std::process::exit(10);
+                }
+            };
+
+            let mut candidates = Vec::new();
+            if let Some(dir) = exe_path.parent() {
+                candidates.push(dir.join("vpack-gui.exe"));
+                candidates.push(dir.join("vpack-gui"));
+            }
+            if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+                candidates.push(PathBuf::from(local_appdata).join("Programs").join("VPack").join("vpack-gui.exe"));
+            }
+
+            let gui_binary = candidates.iter().find(|p| p.exists() && p.is_file());
+
+            let Some(gui_path) = gui_binary else {
+                eprintln!("Error [ERR_GUI_NOT_FOUND (code 11)]: 'vpack-gui.exe' was not found alongside 'vpack.exe' or in %LOCALAPPDATA%\\Programs\\VPack.");
+                eprintln!("Please ensure 'vpack-gui.exe' is present or reinstall using 'vpack-installer.exe'.");
+                std::process::exit(11);
+            };
+
+            let mut cmd = std::process::Command::new(gui_path);
+            if let Some(ref a) = archive {
+                if !a.exists() {
+                    eprintln!("Error [ERR_ARCHIVE_NOT_FOUND (code 20)]: specified archive '{}' does not exist.", a.display());
+                    std::process::exit(20);
+                }
+                cmd.arg(a);
+            }
+
+            match cmd.spawn() {
+                Ok(_) => {
+                    println!("✓ Successfully launched VPack Archiver GUI ({})", gui_path.display());
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Error [ERR_GUI_SPAWN_FAILED (code 12)]: failed to launch GUI process: {}", e);
+                    std::process::exit(12);
+                }
+            }
+        }
         Some(Commands::Ui { archive }) => {
             let a = archive::VpackArchive::open(&archive)?;
             tui::render_archive_ui(&a, &archive.to_string_lossy());
@@ -360,6 +412,7 @@ fn main() -> Result<()> {
             println!(" 🗁 VPack Archiver (WinRAR for .vpack) v2.0.0");
             println!("========================================================");
             println!(" Commands:");
+            println!("   vpack gui [<archive>]             Launch Desktop GUI Application");
             println!("   vpack <archive.vpack>             Open & Inspect (WinRAR UI)");
             println!("   vpack a <archive> <files...>      Add / Compress files");
             println!("   vpack x <archive> [-o <dest>]     Extract all files");

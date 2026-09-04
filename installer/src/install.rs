@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -23,12 +23,13 @@ pub fn run_install(vpack_file: &Path, opts: &InstallOptions) -> Result<()> {
     // 1. Verify and read package
     print!("  [1/4] Reading and validating VPack package... ");
     io::stdout().flush().ok();
-    let archive = VpackArchive::open(vpack_file).with_context(|| {
-        format!(
-            "failed to open .vpack package at '{}'",
-            vpack_file.display()
-        )
-    })?;
+    let archive = match VpackArchive::open(vpack_file) {
+        Ok(a) => a,
+        Err(err) => {
+            println!("FAILED");
+            bail!("failed to read or parse '{}': {:#}", vpack_file.display(), err);
+        }
+    };
 
     // Quick test integrity
     archive

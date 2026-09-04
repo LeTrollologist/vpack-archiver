@@ -41,6 +41,27 @@ CANONICAL_ASSET_REGEX = re.compile(
 )
 
 
+def load_dotenv():
+    env_file = ROOT_DIR / ".env"
+    if env_file.exists():
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+
+
+load_dotenv()
+
+
 def log(stage: str, msg: str):
     print(f"\n\033[1;36m[{stage.upper()}]\033[0m {msg}")
 
@@ -446,16 +467,19 @@ def stage_publish(
     vt_summary_file = tag_dir / "audit" / "virustotal-summary.txt"
 
     upload_files = [str(a) for a in assets] + [str(checksums_file)]
-    if vt_summary_file.exists():
+    if vt_data.get("scanned") and vt_summary_file.exists():
         upload_files.append(str(vt_summary_file))
 
     zip_hash = vt_data.get("sha256", "N/A")
     vt_url = vt_data.get("permalink", f"https://www.virustotal.com/gui/file/{zip_hash}")
-    vt_status_text = (
-        f"🟢 {vt_data['stats'].get('malicious', 0)} detections ({vt_data['stats'].get('undetected', 0)} engines clean)"
-        if vt_data.get("scanned")
-        else "🟢 Verified Clean / Independent Permalinks Available"
-    )
+    if vt_data.get("scanned"):
+        vt_status_text = f"🟢 {vt_data['stats'].get('malicious', 0)} detections ({vt_data['stats'].get('undetected', 0)} engines clean)"
+        vt_summary_row = "| `virustotal-summary.txt` | Security Audit | Multi-engine antivirus analysis report |\n"
+        vt_table_row = f"| **VirusTotal Scan** | {vt_status_text} | [View VirusTotal Report]({vt_url}) |\n| **Audit Summary** | Local Security & Compliance Verified | Uploaded as `virustotal-summary.txt` |\n"
+    else:
+        vt_status_text = "⚪ Pending submission / Community analysis"
+        vt_summary_row = ""
+        vt_table_row = f"| **VirusTotal Report** | {vt_status_text} | [Check VirusTotal Hash]({vt_url}) |\n"
 
     release_body = rf"""## 🗁 VPack Archiver {version} · Universal Archive Manager
 
@@ -476,13 +500,11 @@ Modern, ultra-fast universal archive manager, compressor, and WinRAR/7-Zip equiv
   - Added support for stored uncompressed codec (`-C store`).
   - Added `WebView2Loader.dll` bundling in native `.vpack` distributions for complete standalone offline execution.
 
-### 🛡️ Security & VirusTotal Verification
+### 🛡️ Security & Verification
 | Security Check | Result | Verification Link |
 | :--- | :--- | :--- |
-| **VirusTotal Scan** | {vt_status_text} | [View VirusTotal Report]({vt_url}) |
 | **SHA-256 Checksum** | `{zip_hash}` | Match against `SHA256SUMS.txt` |
-| **Audit Summary** | Local Security & Compliance Verified | Uploaded as `virustotal-summary.txt` |
-
+{vt_table_row}
 ### 📦 Downloads & Assets
 | Asset | Format | Description |
 | :--- | :--- | :--- |
@@ -490,7 +512,7 @@ Modern, ultra-fast universal archive manager, compressor, and WinRAR/7-Zip equiv
 | `vpack-archiver-{version}-windows-x86_64.zip` | Standard Zip | Portable release bundle (`vpack-archiver.exe`, `vpack.exe`, `vpack-gui.exe`, docs) |
 | `vpack-archiver-{version}-windows-x86_64.vpack` | VPack Archive | Native VPK2 archive (extract with `vpack x` or install with `vpack-installer.exe`) |
 | `SHA256SUMS.txt` | SHA-256 | Cryptographic checksums of all release assets |
-| `virustotal-summary.txt` | Security Audit | Multi-engine antivirus analysis report |
+{vt_summary_row}
 
 ### 🚀 Installation & Update Guide
 

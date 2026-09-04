@@ -5,3 +5,5 @@ dist_release/
 *.pub
 *.vpack
 *.zip
+.env
+.env.*

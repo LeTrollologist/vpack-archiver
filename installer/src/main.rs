@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 #[derive(Parser, Debug)]
 #[command(
     name = "vpack-installer",
-    version = "2.0.0",
+    version = "2.0.1",
     about = "VPack Archiver - Native Windows Installer and Shell Integrator"
 )]
 struct Args {

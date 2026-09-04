@@ -22,7 +22,7 @@ The official installer is written in 100% pure Rust and requires **no administra
 ### 1. Download Release Files
 From the [GitHub Releases](https://github.com/LeTrollologist/vpack-archiver/releases):
 - `vpack-installer.exe`
-- `vpack-archiver-v2.0.0-windows-x86_64.vpack`
+- `vpack-archiver-v2.0.1-windows-x86_64.vpack`
 
 Place both files into the same directory (e.g. `Downloads`).
 
@@ -49,7 +49,7 @@ To install silently with all defaults enabled:
 
 Custom installation directory unattended:
 ```powershell
-.\vpack-installer.exe -p .\vpack-archiver-v2.0.0-windows-x86_64.vpack -d C:\Tools\VPack --silent
+.\vpack-installer.exe -p .\vpack-archiver-v2.0.1-windows-x86_64.vpack -d C:\Tools\VPack --silent
 ```
 
 ---
@@ -60,13 +60,13 @@ If you already have a `vpack.exe` binary on your system, you can dog-food and un
 
 ```bash
 # 1. Download release package
-# vpack-archiver-v2.0.0-windows-x86_64.vpack
+# vpack-archiver-v2.0.1-windows-x86_64.vpack
 
 # 2. Test package integrity
-vpack t vpack-archiver-v2.0.0-windows-x86_64.vpack
+vpack t vpack-archiver-v2.0.1-windows-x86_64.vpack
 
 # 3. Extract to target directory
-vpack x vpack-archiver-v2.0.0-windows-x86_64.vpack -o C:\Tools\VPack
+vpack x vpack-archiver-v2.0.1-windows-x86_64.vpack -o C:\Tools\VPack
 ```
 
 ---
@@ -75,10 +75,10 @@ vpack x vpack-archiver-v2.0.0-windows-x86_64.vpack -o C:\Tools\VPack
 
 For portable USB drives or environments without registry modifications:
 
-1. Download `vpack-archiver-v2.0.0-windows-x86_64.zip`.
+1. Download `vpack-archiver-v2.0.1-windows-x86_64.zip`.
 2. Extract the archive into your preferred directory:
    ```powershell
-   Expand-Archive -Path .\vpack-archiver-v2.0.0-windows-x86_64.zip -DestinationPath C:\Tools\VPack
+   Expand-Archive -Path .\vpack-archiver-v2.0.1-windows-x86_64.zip -DestinationPath C:\Tools\VPack
    ```
 3. (Optional) Add to your User PATH manually:
    ```powershell
@@ -121,9 +121,9 @@ All release assets include SHA-256 digests in `SHA256SUMS.txt`. You can verify f
 ```powershell
 # Using certutil on Windows
 certutil -hashfile vpack-installer.exe SHA256
-certutil -hashfile vpack-archiver-v2.0.0-windows-x86_64.vpack SHA256
-certutil -hashfile vpack-archiver-v2.0.0-windows-x86_64.zip SHA256
+certutil -hashfile vpack-archiver-v2.0.1-windows-x86_64.vpack SHA256
+certutil -hashfile vpack-archiver-v2.0.1-windows-x86_64.zip SHA256
 
 # Verify .vpack integrity via VPack CLI
-vpack t vpack-archiver-v2.0.0-windows-x86_64.vpack
+vpack t vpack-archiver-v2.0.1-windows-x86_64.vpack
 ```

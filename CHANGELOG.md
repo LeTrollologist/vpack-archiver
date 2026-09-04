@@ -5,6 +5,23 @@ All notable changes to the `vpack-archiver` project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-09-04
+
+### Fixed
+* **GUI Password Dialog & Session Handling**: Added interactive modal password prompt when extracting, listing, or testing encrypted `.vpack` archives in `vpack-gui.exe`. Automatically forwards user passwords across GUI IPC operations, retains passwords in memory for current archive sessions, and clears stale error banners.
+* **Zip Slip Path Traversal Protection**: Implemented strict sanitization (`sanitize_archive_path`) in core archive extraction routines to block malicious relative paths (`../`, `..\`, absolute paths) from escaping target output directories.
+* **TUI Crash on Windows CRT**: Resolved access violation (`STATUS_ACCESS_VIOLATION` / `0xc0000005`) in `vpack-tui` caused by `chrono::Local.timestamp_opt` invoking Windows CRT `localtime_s`; migrated to safe, pure-Rust UTC timestamp parsing with Unicode-safe filename truncation.
+* **Integrity Test Signature Verification**: `vpack t` now fully checks Ed25519 digital signatures if present, matching the verification security of archive extraction.
+* **Archive Container Header Metadata**: Fixed container-level metadata slice updates for `total_uncompressed_bytes`, `total_compressed_bytes`, and `total_files` across all compress and append operations.
+* **Store Codec Support**: Fixed `vpack a -C store` compatibility to properly set uncompressed stored metadata and skip compression/decompression passes cleanly.
+* **Underflow Boundary Guard**: Added length boundary validation in `verify_signature` against corrupted inputs smaller than minimum signature length.
+* **Release Packaging Completeness**: Added `WebView2Loader.dll` to `.vpack` self-packaged release distributions matching portable zip contents.
+
+### Changed
+* Version bumped to `2.0.1` across workspace crates, documentation, and installation manifests.
+
+---
+
 ## [2.0.0] - 2026-09-02
 
 ### Added

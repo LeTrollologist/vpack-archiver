@@ -1,4 +1,4 @@
-TAG ?= v2.0.0
+TAG ?= v2.0.1
 
 .PHONY: release draft build check clean test gui installer
 

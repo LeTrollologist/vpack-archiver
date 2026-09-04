@@ -22,6 +22,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 # Ensure UTF-8 output on Windows consoles
@@ -176,6 +177,12 @@ def stage_package(version: str, tag_dir: Path):
     if gui_bin.exists():
         shutil.copy2(gui_bin, staging_dir / "vpack-gui.exe")
         print(f"  Bundling vpack-gui.exe ({gui_bin.stat().st_size // 1024} KB)")
+        loader_dll = ROOT_DIR / "target" / "release" / "WebView2Loader.dll"
+        if not loader_dll.exists():
+            loader_dll = ROOT_DIR / "gui" / "assets" / "WebView2Loader.dll"
+        if loader_dll.exists():
+            shutil.copy2(loader_dll, staging_dir / "WebView2Loader.dll")
+            print(f"  Bundling WebView2Loader.dll ({loader_dll.stat().st_size // 1024} KB)")
     else:
         print("  [!] vpack-gui.exe not found — GUI will be absent from release bundle")
     shutil.copy2(ROOT_DIR / "README.md", staging_dir / "README.md")
@@ -183,6 +190,12 @@ def stage_package(version: str, tag_dir: Path):
         shutil.copy2(ROOT_DIR / "LICENSE", staging_dir / "LICENSE")
     if (ROOT_DIR / "CHANGELOG.md").exists():
         shutil.copy2(ROOT_DIR / "CHANGELOG.md", staging_dir / "CHANGELOG.md")
+
+    # Normalize timestamps on staged files to current time to satisfy zipfile requirements (> 1980)
+    now = time.time()
+    for item in staging_dir.rglob("*"):
+        if item.is_file():
+            os.utime(item, (now, now))
 
     # 1. Create ZIP Archive
     zip_name = f"vpack-archiver-{version}-windows-x86_64.zip"

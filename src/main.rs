@@ -380,6 +380,13 @@ fn main() -> Result<()> {
                 cmd.arg(a);
             }
 
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+                cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+            }
+
             match cmd.spawn() {
                 Ok(mut child) => {
                     // Monitor child process across window creation window

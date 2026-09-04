@@ -4,7 +4,6 @@ WinRAR & 7-Zip Style Visual Console Explorer for VPack Archives
 #![allow(dead_code)]
 
 use crate::archive::{VpackArchive, FLAG_ENCRYPTED, FLAG_SIGNED};
-use chrono::{Local, TimeZone};
 
 pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
     let term_width = 85;
@@ -78,7 +77,7 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
         };
 
         let dt_str = if entry.modified_timestamp > 0 {
-            if let Some(dt) = Local.timestamp_opt(entry.modified_timestamp, 0).single() {
+            if let Some(dt) = chrono::DateTime::from_timestamp(entry.modified_timestamp, 0) {
                 dt.format("%Y-%m-%d %H:%M").to_string()
             } else {
                 "----/--/-- --:--".into()
@@ -87,8 +86,10 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
             "----/--/-- --:--".into()
         };
 
-        let name_display = if entry.path.len() > 32 {
-            format!("{}...", &entry.path[..29])
+        let char_count = entry.path.chars().count();
+        let name_display = if char_count > 32 {
+            let truncated: String = entry.path.chars().take(29).collect();
+            format!("{}...", truncated)
         } else {
             entry.path.clone()
         };
@@ -141,4 +142,44 @@ pub fn render_archive_ui(archive: &VpackArchive, archive_path_display: &str) {
         status_sec
     );
     println!("╚{}╝", double_sep);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::archive::ArchiveMetadata;
+
+    #[test]
+    fn test_render_archive_ui() {
+        let meta = ArchiveMetadata {
+            created_at: 1700000000,
+            creator: "test".into(),
+            comment: None,
+            total_uncompressed_bytes: 100,
+            total_compressed_bytes: 50,
+            total_files: 1,
+        };
+        let cd = vec![crate::archive::CentralDirEntry {
+            path: "test.txt".into(),
+            uncompressed_size: 100,
+            compressed_size: 50,
+            payload_offset: 0,
+            method: 1,
+            mode: 0o644,
+            crc32: 0x12345678,
+            modified_timestamp: 1700000000,
+            is_dir: false,
+            comment: None,
+        }];
+        let archive = VpackArchive {
+            version: 2,
+            flags: 0,
+            metadata: meta,
+            central_directory: cd,
+            public_key: None,
+            signature: None,
+            raw_data: Vec::new(),
+        };
+        render_archive_ui(&archive, "test.vpack");
+    }
 }

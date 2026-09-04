@@ -194,13 +194,13 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
       <button class="btn btn-primary" onclick="sendIpc({ action: 'open_dialog' })">
         <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>Open
       </button>
-      <button class="btn" id="btn-extract" onclick="sendIpc({ action: 'extract_dialog' })" disabled style="opacity: 0.5;">
+      <button class="btn" id="btn-extract" onclick="triggerExtract()" disabled style="opacity: 0.5;">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Extract All
       </button>
       <button class="btn" onclick="openCreateModal()">
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>New Archive
       </button>
-      <button class="btn" id="btn-test" onclick="sendIpc({ action: 'test_integrity' })" disabled style="opacity: 0.5;">
+      <button class="btn" id="btn-test" onclick="triggerTest()" disabled style="opacity: 0.5;">
         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Test
       </button>
       <button class="btn" onclick="openBenchModal()">
@@ -369,6 +369,29 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="modal-overlay" id="modal-password">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title">🔒 Password Required</div>
+        <button class="modal-close" onclick="closeModal('modal-password')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="pwd-prompt-desc">This archive is password-protected. Please enter the password to decrypt the contents:</p>
+        <div class="form-group">
+          <label class="form-label">Archive Password:</label>
+          <div style="position: relative;">
+            <input type="password" class="form-input" id="archive-password-input" placeholder="Enter password..." style="width: 100%; padding-right: 40px;" onkeydown="if(event.key==='Enter') submitPasswordModal();">
+            <button type="button" onclick="togglePasswordVisibility('archive-password-input')" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" title="Show/Hide Password">👁</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-password')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitPasswordModal()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast"><span id="toast-msg">Notification</span></div>
 
 <script>
@@ -378,6 +401,67 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
   let sortColumn = 'name';
   let sortAsc = true;
   let selectedIndices = new Set();
+  let currentPassword = null;
+  let passwordCallback = null;
+
+  function promptPassword(desc, onConfirm) {
+    document.getElementById('pwd-prompt-desc').innerText = desc || 'This archive is password-protected. Please enter the password to decrypt the contents:';
+    document.getElementById('archive-password-input').value = currentPassword || '';
+    passwordCallback = onConfirm;
+    document.getElementById('modal-password').style.display = 'flex';
+    setTimeout(() => {
+      const input = document.getElementById('archive-password-input');
+      input.focus();
+      input.select();
+    }, 100);
+  }
+
+  function submitPasswordModal() {
+    const val = document.getElementById('archive-password-input').value;
+    currentPassword = val;
+    closeModal('modal-password');
+    if (passwordCallback) {
+      const cb = passwordCallback;
+      passwordCallback = null;
+      cb(val);
+    }
+  }
+
+  function togglePasswordVisibility(id) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') input.type = 'text';
+    else input.type = 'password';
+  }
+
+  function triggerExtract() {
+    if (!currentArchive) return;
+    if (currentArchive.flags.encrypted) {
+      if (currentPassword) {
+        sendIpc({ action: 'extract_dialog', password: currentPassword });
+      } else {
+        promptPassword('Enter archive password to extract files:', (pwd) => {
+          sendIpc({ action: 'extract_dialog', password: pwd });
+        });
+      }
+    } else {
+      sendIpc({ action: 'extract_dialog', password: null });
+    }
+  }
+
+  function triggerTest() {
+    if (!currentArchive) return;
+    if (currentArchive.flags.encrypted) {
+      if (currentPassword) {
+        sendIpc({ action: 'test_integrity', password: currentPassword });
+      } else {
+        promptPassword('Enter archive password to verify integrity:', (pwd) => {
+          sendIpc({ action: 'test_integrity', password: pwd });
+        });
+      }
+    } else {
+      sendIpc({ action: 'test_integrity', password: null });
+    }
+  }
 
   function sendIpc(obj) {
     if (window.ipc) { window.ipc.postMessage(JSON.stringify(obj)); }
@@ -509,6 +593,7 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
       allEntries = currentArchive.entries;
       displayedEntries = [...allEntries];
       selectedIndices.clear();
+      currentPassword = null;
 
       document.getElementById('empty-view').style.display = 'none';
       document.getElementById('archive-view').style.display = 'flex';
@@ -524,6 +609,41 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
         ? ((1 - currentArchive.metadata.total_compressed_bytes / currentArchive.metadata.total_uncompressed_bytes) * 100).toFixed(1)
         : '0.0';
       document.getElementById('hud-space-saved').innerText = `${savedRatio}%`;
+
+      // Update signature badge
+      const sigChip = document.getElementById('hud-sig-chip');
+      if (currentArchive.flags.signed) {
+        sigChip.style.display = 'inline-flex';
+        sigChip.innerText = 'Ed25519 Signed';
+        sigChip.className = 'badge-chip chip-cyan';
+      } else {
+        sigChip.style.display = 'inline-flex';
+        sigChip.innerText = 'Unsigned Archive';
+        sigChip.className = 'badge-chip chip-amber';
+      }
+
+      // Update codec / encryption badge
+      const codecChip = document.getElementById('hud-codec-chip');
+      if (currentArchive.flags.encrypted) {
+        codecChip.style.display = 'inline-flex';
+        codecChip.innerText = '🔒 Encrypted (AES Stream)';
+        codecChip.className = 'badge-chip chip-amber';
+      } else if (currentArchive.flags.compressed) {
+        let codecName = 'Deflate';
+        for (const e of allEntries) {
+          if (!e.is_dir && e.method === 2) {
+            codecName = 'LZ4';
+            break;
+          }
+        }
+        codecChip.style.display = 'inline-flex';
+        codecChip.innerText = 'Codec: ' + codecName;
+        codecChip.className = 'badge-chip chip-indigo';
+      } else {
+        codecChip.style.display = 'inline-flex';
+        codecChip.innerText = 'Store (Uncompressed)';
+        codecChip.className = 'badge-chip chip-cyan';
+      }
 
       document.getElementById('btn-extract').disabled = false;
       document.getElementById('btn-extract').style.opacity = '1';
@@ -556,8 +676,12 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
       showToast('✓ ' + event.message, 4000);
       document.getElementById('status-text').innerText = event.message;
     } else if (event.type === 'OPERATION_ERROR') {
-      showToast('❌ ' + event.message, 5000);
-      document.getElementById('status-text').innerText = 'Error: ' + event.message;
+      const err = event.message || '';
+      if (err.toLowerCase().includes('password') || err.toLowerCase().includes('crc-32 mismatch')) {
+        currentPassword = null;
+      }
+      showToast('❌ ' + err, 5000);
+      document.getElementById('status-text').innerText = 'Error: ' + err;
     }
   };
 
@@ -595,7 +719,8 @@ pub const INDEX_HTML: &str = r###"<!DOCTYPE html>
         <div><strong>Compressed:</strong></div><div class="mono">${formatBytes(currentArchive.metadata.total_compressed_bytes)}</div>
         <div><strong>Created By:</strong></div><div>${currentArchive.metadata.creator || 'VPack Archiver'}</div>
         <div><strong>Created Timestamp:</strong></div><div>${formatDate(currentArchive.metadata.created_at)}</div>
-        <div><strong>Signature:</strong></div><div><span class="badge-chip chip-cyan" style="display:inline-block;">Ed25519 Verified</span></div>
+        <div><strong>Signature:</strong></div><div><span class="badge-chip ${currentArchive.flags.signed ? 'chip-cyan' : 'chip-amber'}" style="display:inline-block;">${currentArchive.flags.signed ? 'Ed25519 Signed' : 'Unsigned Archive'}</span></div>
+        <div><strong>Encryption:</strong></div><div><span class="badge-chip ${currentArchive.flags.encrypted ? 'chip-amber' : 'chip-cyan'}" style="display:inline-block;">${currentArchive.flags.encrypted ? '🔒 AES Stream Encrypted' : 'None (Plaintext)'}</span></div>
         <div><strong>Comment:</strong></div><div>${currentArchive.metadata.comment || 'None'}</div>
       </div>
     `;

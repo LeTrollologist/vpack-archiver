@@ -37,9 +37,9 @@ enum IpcCommand {
     #[serde(rename = "open_path")]
     OpenPath { path: String },
     #[serde(rename = "extract_dialog")]
-    ExtractDialog,
+    ExtractDialog { password: Option<String> },
     #[serde(rename = "test_integrity")]
-    TestIntegrity,
+    TestIntegrity { password: Option<String> },
     #[serde(rename = "run_benchmark")]
     RunBenchmark { size_mb: Option<usize> },
     #[serde(rename = "pick_source_dir")]
@@ -185,11 +185,12 @@ fn handle_ipc_message(msg: &str, webview: &wry::WebView, state_lock: &Arc<Mutex<
                 emit_error(webview, "Specified file does not exist.");
             }
         }
-        IpcCommand::ExtractDialog => {
+        IpcCommand::ExtractDialog { password } => {
             let state = state_lock.lock().unwrap();
             if let Some(ref archive) = state.current_archive {
                 if let Some(dest) = rfd::FileDialog::new().pick_folder() {
-                    match archive.extract_all(&dest, None) {
+                    let pwd_filter = password.filter(|p| !p.is_empty());
+                    match archive.extract_all(&dest, pwd_filter.as_deref()) {
                         Ok(count) => {
                             emit_success(
                                 webview,
@@ -209,18 +210,24 @@ fn handle_ipc_message(msg: &str, webview: &wry::WebView, state_lock: &Arc<Mutex<
                 emit_error(webview, "No archive currently loaded.");
             }
         }
-        IpcCommand::TestIntegrity => {
+        IpcCommand::TestIntegrity { password } => {
             let state = state_lock.lock().unwrap();
             if let Some(ref archive) = state.current_archive {
-                match archive.test_integrity(None) {
+                let pwd_filter = password.filter(|p| !p.is_empty());
+                match archive.test_integrity(pwd_filter.as_deref()) {
                     Ok(count) => {
-                        emit_success(
-                            webview,
-                            &format!(
-                                "Integrity Verified: all {} entries matched CRC-32 checksums perfectly!",
-                                count
-                            ),
+                        let mut msg = format!(
+                            "Integrity Verified: all {} entries matched CRC-32 checksums perfectly!",
+                            count
                         );
+                        if (archive.flags & FLAG_SIGNED) != 0 || archive.signature.is_some() {
+                            match vpack_core::verify::verify_signature(archive, None) {
+                                Ok(true) => msg.push_str(" (Ed25519 signature authentic!)"),
+                                Ok(false) => msg.push_str(" (⚠ Ed25519 signature INVALID!)"),
+                                Err(e) => msg.push_str(&format!(" (⚠ Signature error: {})", e)),
+                            }
+                        }
+                        emit_success(webview, &msg);
                     }
                     Err(e) => {
                         emit_error(webview, &format!("Integrity check failed: {}", e));
@@ -289,7 +296,8 @@ fn handle_ipc_message(msg: &str, webview: &wry::WebView, state_lock: &Arc<Mutex<
 
             match collect_directory_entries(&src, &src) {
                 Ok(entries) => {
-                    let pwd_ref = password.as_deref();
+                    let pwd_filter = password.filter(|p| !p.trim().is_empty());
+                    let pwd_ref = pwd_filter.as_deref();
                     match VpackArchive::create_archive(
                         &out,
                         entries,

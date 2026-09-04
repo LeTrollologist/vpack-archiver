@@ -83,8 +83,8 @@ def stage_preflight():
 
 
 def stage_build():
-    log("build", "Building optimized release binary (cargo build --release)...")
-    run_cmd(["cargo", "build", "--release"])
+    log("build", "Building optimized release binaries (cargo build --release --workspace)...")
+    run_cmd(["cargo", "build", "--release", "--workspace"])
 
 
 def stage_test():
@@ -225,6 +225,8 @@ def stage_package(version: str, tag_dir: Path):
     ]
     if (staging_dir / "vpack-gui.exe").exists():
         vpack_items.append(str(staging_dir / "vpack-gui.exe"))
+    if (staging_dir / "WebView2Loader.dll").exists():
+        vpack_items.append(str(staging_dir / "WebView2Loader.dll"))
 
     vpack_cmd = [str(release_bin), "a", str(vpack_path)] + vpack_items + ["-c", "9"]
     run_cmd(vpack_cmd)

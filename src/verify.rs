@@ -26,6 +26,10 @@ pub fn verify_signature(
         .map_err(|e| anyhow::anyhow!("invalid verifying key: {e}"))?;
     let signature = Signature::from_bytes(&sig_bytes);
 
+    if archive.raw_data.len() < 28 + 96 {
+        return Ok(false);
+    }
+
     let signed_payload_len = archive.raw_data.len() - 28 - 96;
     let signed_data = &archive.raw_data[..signed_payload_len];
 

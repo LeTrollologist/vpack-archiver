@@ -42,7 +42,7 @@ enum Commands {
         /// Compression level (0 = Store; 1–9 = Deflate; LZ4 ignores level) [default: 6]
         #[arg(short = 'c', long, default_value = "6")]
         level: u32,
-        /// Compression codec: deflate (default) or lz4 (ultra fast)
+        /// Compression codec: deflate (default), lz4 (ultra fast), or store (uncompressed)
         #[arg(short = 'C', long, default_value = "deflate")]
         codec: String,
         /// Password protect / encrypt archive
@@ -158,9 +158,9 @@ fn main() -> Result<()> {
 
             // Validate codec
             let codec = codec.to_lowercase();
-            if codec != "deflate" && codec != "lz4" {
+            if codec != "deflate" && codec != "lz4" && codec != "store" {
                 bail!(
-                    "unknown codec '{}': valid options are 'deflate' or 'lz4'",
+                    "unknown codec '{}': valid options are 'deflate', 'lz4', or 'store'",
                     codec
                 );
             }
@@ -186,9 +186,14 @@ fn main() -> Result<()> {
                 if f.is_dir() {
                     let dir_name = f
                         .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string();
+                        .map(|n| n.to_string_lossy().to_string())
+                        .filter(|n| !n.is_empty() && n != "." && n != "..")
+                        .unwrap_or_else(|| {
+                            f.canonicalize()
+                                .ok()
+                                .and_then(|c| c.file_name().map(|n| n.to_string_lossy().to_string()))
+                                .unwrap_or_else(|| "archive_root".to_string())
+                        });
                     all_entries.push(archive::ArchiveInputEntry {
                         rel_path: format!("{}/", dir_name),
                         data: Vec::new(),
@@ -208,9 +213,8 @@ fn main() -> Result<()> {
                 } else if f.is_file() {
                     let name = f
                         .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string();
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| f.to_string_lossy().to_string());
                     let data = fs::read(f)?;
                     all_entries.push(archive::ArchiveInputEntry {
                         rel_path: name,
@@ -224,9 +228,13 @@ fn main() -> Result<()> {
 
             let sk = if let Some(key_path) = sign {
                 let s = fs::read_to_string(key_path)?;
-                let bytes = (0..s.trim().len())
+                let hex_str: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+                if hex_str.len() % 2 != 0 {
+                    bail!("invalid hex-encoded key: odd number of characters");
+                }
+                let bytes = (0..hex_str.len())
                     .step_by(2)
-                    .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+                    .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16))
                     .collect::<Result<Vec<u8>, _>>()?;
                 let arr: [u8; 32] = bytes
                     .try_into()
@@ -306,6 +314,21 @@ fn main() -> Result<()> {
                 "✓ Integrity Test PASSED: {} files verified with CRC-32 & EOF index",
                 count
             );
+            if (a.flags & archive::FLAG_SIGNED) != 0 || a.signature.is_some() {
+                match verify::verify_signature(&a, None) {
+                    Ok(true) => {
+                        println!("✓ Digital Signature: Verified (authentic Ed25519 publisher signature)");
+                    }
+                    Ok(false) => {
+                        eprintln!("✗ Digital Signature: FAILED (signature invalid or archive tampered)");
+                        bail!("digital signature verification failed");
+                    }
+                    Err(e) => {
+                        eprintln!("✗ Digital Signature Error: {}", e);
+                        bail!("digital signature verification error: {}", e);
+                    }
+                }
+            }
             Ok(())
         }
         Some(Commands::View {
@@ -405,7 +428,7 @@ fn main() -> Result<()> {
                         eprintln!("Error [ERR_GUI_CRASHED (code 13)]: GUI process terminated unexpectedly (exit code: {} / {:#x}).", exit_code, exit_code as u32);
                         if exit_code as u32 == 0xc0000005 {
                             eprintln!("Details: 0xc0000005 (STATUS_ACCESS_VIOLATION).");
-                            eprintln!("The graphics engine (eframe/winit/OpenGL) encountered an access violation while creating the GPU window context on this system.");
+                            eprintln!("The graphics engine (WebView2/wry/tao) encountered an error while initializing the window context on this system.");
                             eprintln!("\nTip: In the meantime, you can use the interactive visual table UI directly in your console:");
                             eprintln!("  vpack l <archive.vpack>   (WinRAR visual inspector)");
                             eprintln!("  vpack ui <archive.vpack>  (Interactive table explorer)");
@@ -455,7 +478,7 @@ fn main() -> Result<()> {
             println!("   vpack keygen [-o <prefix>]        Generate signing keypair");
             println!(" Compression:");
             println!("   -c <level>   0=Store  1-9=Deflate  (LZ4 ignores level) [default: 6]");
-            println!("   -C <codec>   deflate (default) | lz4 (ultra fast)");
+            println!("   -C <codec>   deflate (default) | lz4 (ultra fast) | store (uncompressed)");
             println!("========================================================");
             Ok(())
         }

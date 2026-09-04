@@ -45,7 +45,7 @@
 * **$\mathcal{O}(1)$ Random-Access Seeks (VPK2 Central Directory)**: Index table is located at the End of File (EOF / EOCD). Extract or preview single files instantly without scanning or decompressing gigabytes of preceding data.
 * **Hardware-Accelerated CRC-32**: SSE4.2 / ARMv8 hardware-checksum computation and verification operating at over 6.2 GB/s.
 * **Password Protection & Stream Encryption**: Integrated SHA-256 authenticated stream cipher protection (`-p <password>`).
-* **Native Windows Desktop GUI (`vpack-gui.exe`)**: Modern WinRAR/7-Zip style graphical archive explorer built with pure-Rust `egui`/`eframe`. Includes sortable file grids, drag-and-drop support, codec/level selection dialogs, password encryption, and background worker threads.
+* **Native Windows Desktop GUI (`vpack-gui.exe`)**: Modern WinRAR/7-Zip style graphical archive explorer built with `wry` and `tao` (native Evergreen WebView2 engine). Includes sortable file grids, drag-and-drop support, codec/level selection dialogs, interactive password protection & decryption, and hardware benchmark suite.
 * **WinRAR-Style Interactive Console Explorer**: Visual terminal table with file type icons, original/packed sizes, compression ratios, CRC-32 checksums, and modification timestamps.
 * **Digital Signatures**: Optional RFC 8032 Ed25519 publisher signature signing and tamper verification (`keygen` / `-s <key>`).
 * **Built-in Benchmark Suite**: Hardware-level CPU compression throughput (Deflate & LZ4), decompression speed, and checksum rate measurement (`vpack b`).

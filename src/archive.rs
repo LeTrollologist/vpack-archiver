@@ -125,8 +125,14 @@ impl VpackArchive {
             u32::from_le_bytes(data[eocd_pos + 20..eocd_pos + 24].try_into()?) as usize;
         let sig_len = u32::from_le_bytes(data[eocd_pos + 24..eocd_pos + 28].try_into()?) as usize;
 
-        if cd_offset + cd_len > data.len() {
-            bail!("corrupted archive: central directory extends past EOF");
+        if cd_offset + cd_len > eocd_pos {
+            bail!("corrupted archive: central directory extends past or overlaps EOCD footer");
+        }
+        if sig_len > 0 && sig_len != 96 {
+            bail!("invalid archive signature block length: {}", sig_len);
+        }
+        if sig_len == 96 && cd_offset + cd_len + 96 > eocd_pos {
+            bail!("corrupted archive: signature block overlaps EOCD footer");
         }
 
         let version = u16::from_le_bytes([data[4], data[5]]);
@@ -231,13 +237,15 @@ impl VpackArchive {
         Ok(decompressed)
     }
 
-    /// Extract all files maintaining directory structure
+    /// Extract all files maintaining directory structure with path traversal (Zip Slip) protection
     pub fn extract_all(&self, dest_dir: &Path, password: Option<&str>) -> Result<usize> {
         fs::create_dir_all(dest_dir)?;
         let mut count = 0;
 
         for entry in &self.central_directory {
-            let target_path = dest_dir.join(&entry.path);
+            let safe_rel = sanitize_archive_path(&entry.path)?;
+            let target_path = dest_dir.join(safe_rel);
+
             if entry.is_dir {
                 fs::create_dir_all(&target_path)?;
                 continue;
@@ -275,7 +283,7 @@ impl VpackArchive {
 
     /// Create a new .vpack archive from a list of files/directories.
     ///
-    /// `codec` — compression codec: `"deflate"` (default) or `"lz4"`.
+    /// `codec` — compression codec: `"deflate"` (default), `"lz4"`, or `"store"`.
     /// `compress_level` — Deflate level 0–9 (0 = store, codec ignored); LZ4 ignores level.
     pub fn create_archive(
         out_path: &Path,
@@ -291,7 +299,7 @@ impl VpackArchive {
         let mut file_count = 0u32;
 
         let mut flags = FLAG_NONE;
-        if compress_level > 0 {
+        if compress_level > 0 && codec != "store" {
             flags |= FLAG_COMPRESSED;
         }
         if password.is_some() {
@@ -350,7 +358,9 @@ impl VpackArchive {
             let crc = crc32_compute(&input.data);
             let chunk_offset = out.len() as u64;
 
-            let (mut chunk_bytes, method) = if compress_level > 0 {
+            let (mut chunk_bytes, method) = if codec == "store" || compress_level == 0 {
+                (input.data, METHOD_STORE)
+            } else {
                 match codec {
                     "lz4" => {
                         let compressed = lz4_flex::compress_prepend_size(&input.data);
@@ -366,8 +376,6 @@ impl VpackArchive {
                         (encoder.finish()?, METHOD_DEFLATE)
                     }
                 }
-            } else {
-                (input.data, METHOD_STORE)
             };
 
             if let Some(pwd) = password {
@@ -395,9 +403,15 @@ impl VpackArchive {
             });
         }
 
+        // Update metadata header with actual computed totals
         metadata.total_uncompressed_bytes = total_uncompressed;
         metadata.total_compressed_bytes = total_compressed;
         metadata.total_files = file_count;
+
+        let updated_meta_bytes = bincode::serialize(&metadata)?;
+        if updated_meta_bytes.len() == meta_bytes.len() {
+            out[16..16 + meta_bytes.len()].copy_from_slice(&updated_meta_bytes);
+        }
 
         let cd_offset = out.len() as u64;
         let cd_bytes = bincode::serialize(&central_directory)?;
@@ -430,6 +444,37 @@ impl VpackArchive {
     }
 }
 
+/// Sanitize an archive relative path to prevent Zip Slip / path traversal attacks.
+///
+/// Ensures the path contains only `Normal` components and rejects any `..`,
+/// root prefixes (`/`), or Windows drive letters (`C:`).
+pub fn sanitize_archive_path(path: &str) -> Result<std::path::PathBuf> {
+    let p = Path::new(path);
+    let mut safe = std::path::PathBuf::new();
+    for comp in p.components() {
+        match comp {
+            std::path::Component::Normal(c) => safe.push(c),
+            std::path::Component::CurDir => continue,
+            std::path::Component::ParentDir => {
+                bail!(
+                    "security error: archive entry '{}' contains parent directory traversal ('..')",
+                    path
+                );
+            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                bail!(
+                    "security error: archive entry '{}' contains an absolute path or drive prefix",
+                    path
+                );
+            }
+        }
+    }
+    if safe.as_os_str().is_empty() {
+        bail!("invalid archive entry: empty path '{}'", path);
+    }
+    Ok(safe)
+}
+
 pub struct ArchiveInputEntry {
     pub rel_path: String,
     pub data: Vec<u8>,
@@ -451,6 +496,7 @@ pub fn collect_directory_entries(
             .strip_prefix(base_path)?
             .to_string_lossy()
             .replace('\\', "/");
+        let rel_path = rel_path.trim_start_matches('/').to_string();
         let modified = metadata
             .modified()
             .unwrap_or(SystemTime::UNIX_EPOCH)
@@ -681,6 +727,151 @@ mod tests {
         let invalid =
             crate::verify::verify_signature(&archive, Some(&other_key.verifying_key().to_bytes()))?;
         assert!(!invalid);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_zip_slip_protection() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_zipslip");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let archive_path = temp_dir.join("traversal.vpack");
+        let entries = vec![
+            ArchiveInputEntry {
+                rel_path: "../../evil.txt".to_string(),
+                data: b"malicious content".to_vec(),
+                mode: 0o644,
+                modified: 1000000,
+                is_dir: false,
+            },
+        ];
+
+        VpackArchive::create_archive(
+            &archive_path,
+            entries,
+            0,
+            "store",
+            None,
+            None,
+            None,
+        )?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        let out_dir = temp_dir.join("safe_out");
+        let extract_result = archive.extract_all(&out_dir, None);
+        assert!(extract_result.is_err(), "Zip Slip path traversal should be rejected");
+
+        // Verify sanitize_archive_path directly
+        assert!(sanitize_archive_path("../foo.txt").is_err());
+        assert!(sanitize_archive_path("/absolute/path").is_err());
+        #[cfg(windows)]
+        assert!(sanitize_archive_path("C:\\Windows\\system32").is_err());
+        assert!(sanitize_archive_path("safe/path/file.txt").is_ok());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_archive_metadata_totals_saved() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_meta_totals");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let archive_path = temp_dir.join("meta.vpack");
+        let data1 = b"First file payload with some length";
+        let data2 = b"Second file payload with more length";
+        let entries = vec![
+            ArchiveInputEntry {
+                rel_path: "sub/".to_string(),
+                data: Vec::new(),
+                mode: 0o755,
+                modified: 1000000,
+                is_dir: true,
+            },
+            ArchiveInputEntry {
+                rel_path: "sub/one.txt".to_string(),
+                data: data1.to_vec(),
+                mode: 0o644,
+                modified: 1000000,
+                is_dir: false,
+            },
+            ArchiveInputEntry {
+                rel_path: "sub/two.txt".to_string(),
+                data: data2.to_vec(),
+                mode: 0o644,
+                modified: 1000000,
+                is_dir: false,
+            },
+        ];
+
+        VpackArchive::create_archive(
+            &archive_path,
+            entries,
+            6,
+            "deflate",
+            None,
+            None,
+            None,
+        )?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        assert_eq!(archive.metadata.total_files, 2);
+        assert_eq!(
+            archive.metadata.total_uncompressed_bytes,
+            (data1.len() + data2.len()) as u64
+        );
+        assert!(archive.metadata.total_compressed_bytes > 0);
+        assert_eq!(archive.central_directory.len(), 3);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_codec_store() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("vpack_test_store");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let archive_path = temp_dir.join("stored.vpack");
+        let payload = b"Uncompressed raw bytes stored directly";
+        let entries = vec![ArchiveInputEntry {
+            rel_path: "raw.dat".to_string(),
+            data: payload.to_vec(),
+            mode: 0o644,
+            modified: 1000000,
+            is_dir: false,
+        }];
+
+        // Codec store with level 6 should still use METHOD_STORE and not set FLAG_COMPRESSED
+        VpackArchive::create_archive(
+            &archive_path,
+            entries,
+            6,
+            "store",
+            None,
+            None,
+            None,
+        )?;
+
+        let archive = VpackArchive::open(&archive_path)?;
+        assert_eq!(archive.flags & FLAG_COMPRESSED, 0);
+        assert_eq!(archive.central_directory[0].method, METHOD_STORE);
+        assert_eq!(
+            archive.central_directory[0].compressed_size,
+            payload.len() as u64
+        );
+        assert_eq!(
+            archive.central_directory[0].uncompressed_size,
+            payload.len() as u64
+        );
+
+        let extracted = archive.extract_file("raw.dat", None)?;
+        assert_eq!(extracted, payload.as_slice());
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
